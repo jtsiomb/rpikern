@@ -1,15 +1,18 @@
 SECTIONS {
 	. = 0x00008000;
+	_stacktop = .;
 	_kern_start = .;
 
-	.startup : { KEEP(* (.startup)) }
-	.text : { * (.text); }
-	.rotdata : { * (.rodata); }
-	.data : { * (.data); }
+	.text : {
+		KEEP(* (.startup*));
+		* (.text*);
+	}
+	.rodata ALIGN(4): { * (.rodata*); }
+	.data ALIGN(4): { * (.data*); }
 
 	.bss ALIGN(4): {
 		_bss_start = .;
-		* (.bss);
+		* (.bss*);
 		. = ALIGN(4);
 		_bss_end = .;
 	}

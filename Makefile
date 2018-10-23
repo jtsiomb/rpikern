@@ -18,8 +18,9 @@ endif
 warn = -pedantic -Wall
 dbg = -g
 inc = -Isrc/libc
-gccopt = -fpic -ffreestanding -nostdinc
-arch = -mcpu=arm1176jzf-s
+gccopt = -marm -fpic -ffreestanding -nostdinc
+#arch = -mcpu=arm1176jzf-s
+arch = -mcpu=cortex-a7
 
 CFLAGS = $(arch) $(warn) $(opt) $(dbg) $(gccopt) $(inc) $(def)
 ASFLAGS = $(arch) $(dbg) $(inc)
@@ -48,6 +49,6 @@ clean:
 cleandep:
 	rm -f $(dep)
 
-.PHONY: debug
-debug: $(elf)
+.PHONY: run
+run: $(elf)
 	qemu-system-arm $(QEMU_FLAGS) -kernel $(elf)
