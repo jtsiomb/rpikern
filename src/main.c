@@ -61,18 +61,35 @@
 
 
 int prop_blankscr(int onoff);
+int prop_setvres(int xsz, int ysz);
+void *prop_allocbuf(void);
 
 uint32_t mb_read(int chan);
 void mb_write(int chan, uint32_t val);
 
 int main(void)
 {
-	prop_blankscr(1);
+	int i;
+	uint16_t *fb;
+
+	prop_setvres(640, 480);
+	fb = prop_allocbuf();
+
+	for(i=0; i<640 * 480; i++) {
+		*fb++ = (i & 0xff) | ((i & 0xff) << 8);
+	}
 
 	return 0;
 }
 
 static uint32_t propbuf[64] __attribute__((aligned(16)));
+
+static int send_prop(uint32_t *buf)
+{
+	mb_write(MB_CHAN_PROP, (uint32_t)buf >> 4);
+	mb_read(MB_CHAN_PROP);
+	return propbuf[1] == PROP_RESP_OK ? 0 : -1;
+}
 
 int prop_blankscr(int onoff)
 {
@@ -88,10 +105,47 @@ int prop_blankscr(int onoff)
 	*pb++ = 0;	/* padding */
 	propbuf[0] = (char*)pb - (char*)propbuf;
 
-	mb_write(MB_CHAN_PROP, (uint32_t)propbuf >> 4);
-	mb_read(MB_CHAN_PROP);
+	return send_prop(propbuf);
+}
 
-	return propbuf[1] == PROP_RESP_OK ? 0 : -1;
+int prop_setvres(int xsz, int ysz)
+{
+	uint32_t *pb = propbuf;
+
+	*pb++ = 0;
+	*pb++ = 0;
+	*pb++ = PROP_TAG_VIRTRES | PROP_TAG_SET;
+	*pb++ = 8;	/* data size */
+	*pb++ = PROP_CODE_REQ;
+	*pb++ = xsz;
+	*pb++ = ysz;
+	*pb++ = PROP_TAG_END;
+	propbuf[0] = (char*)pb - (char*)propbuf;
+
+	return send_prop(propbuf);
+}
+
+void *prop_allocbuf(void)
+{
+	uint32_t *pb = propbuf;
+	uint32_t *data;
+
+	*pb++ = 0;
+	*pb++ = 0;
+	*pb++ = PROP_TAG_ALLOCBUF;
+	*pb++ = 8;	/* data size */
+	*pb++ = PROP_CODE_REQ;
+	data = pb;
+	*pb++ = 16;	/* alignment */
+	*pb++ = 0;
+	*pb++ = PROP_TAG_END;
+	propbuf[0] = (char*)pb - (char*)propbuf;
+
+	if(send_prop(propbuf) == -1) {
+		return 0;
+	}
+
+	return (void*)bus2phys(*data);
 }
 
 uint32_t mb_read(int chan)
