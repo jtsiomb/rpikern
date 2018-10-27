@@ -60,26 +60,57 @@
 #define PROP_TAG_CUR_STATE		0x00011
 
 
+void panic(void);
 int prop_blankscr(int onoff);
+int prop_setres(int xsz, int ysz);
+int prop_getres(int *xsz, int *ysz);
 int prop_setvres(int xsz, int ysz);
-void *prop_allocbuf(void);
+int prop_getvres(int *xsz, int *ysz);
+int prop_setdepth(int bpp);
+int prop_getdepth(void);
+int prop_getpitch(void);
+void *prop_allocbuf(int *size);
 
 uint32_t mb_read(int chan);
 void mb_write(int chan, uint32_t val);
 
+void dbgled(int x);
+void exit(int x);
+
 int main(void)
 {
-	int i;
+	int i, j, bpp, fbsize, pitch;
 	uint16_t *fb;
 
-	prop_setvres(640, 480);
-	fb = prop_allocbuf();
+	if(prop_setres(640, 480) == -1) panic();
+	if(prop_setvres(640, 480) == -1) panic();
+	if(prop_setdepth(16) == -1) panic();
+	if(!(fb = prop_allocbuf(&fbsize))) panic();
+	bpp = prop_getdepth();
+	pitch = prop_getpitch();
 
-	for(i=0; i<640 * 480; i++) {
-		*fb++ = (i & 0xff) | ((i & 0xff) << 8);
+	if(bpp != 16) panic();
+
+	for(i=0; i<480; i++) {
+		for(j=0; j<640; j++) {
+			int xor = i ^ j;
+			int r = (xor >> 1) & 0xff;
+			int g = xor & 0xff;
+			int b = (xor << 1) & 0xff;
+
+			*fb++ = ((r << 8) & 0xf800) | ((g << 3) & 0x7e0) | ((b >> 3) & 0x1f);
+		}
+
+		//fb += pitch / 2 - 640;
 	}
 
 	return 0;
+}
+
+void panic(void)
+{
+	dbgled(2);
+	exit(0);
 }
 
 static uint32_t propbuf[64] __attribute__((aligned(16)));
@@ -95,7 +126,7 @@ int prop_blankscr(int onoff)
 {
 	uint32_t *pb = propbuf;
 
-	*pb++ = 0;
+	*pb++ = 32;
 	*pb++ = 0;
 	*pb++ = PROP_TAG_BLANKSCR;
 	*pb++ = 4;	/* data size */
@@ -103,16 +134,54 @@ int prop_blankscr(int onoff)
 	*pb++ = onoff ? 1 : 0;
 	*pb++ = PROP_TAG_END;
 	*pb++ = 0;	/* padding */
-	propbuf[0] = (char*)pb - (char*)propbuf;
 
 	return send_prop(propbuf);
+}
+
+int prop_setres(int xsz, int ysz)
+{
+	uint32_t *pb = propbuf;
+
+	*pb++ = 32;
+	*pb++ = 0;
+	*pb++ = PROP_TAG_PHYSRES | PROP_TAG_SET;
+	*pb++ = 8;	/* data size */
+	*pb++ = PROP_CODE_REQ;
+	*pb++ = xsz;
+	*pb++ = ysz;
+	*pb++ = PROP_TAG_END;
+
+	return send_prop(propbuf);
+}
+
+int prop_getres(int *xsz, int *ysz)
+{
+	uint32_t *pb = propbuf;
+	uint32_t *data;
+
+	*pb++ = 32;
+	*pb++ = 0;
+	*pb++ = PROP_TAG_PHYSRES;
+	*pb++ = 8;
+	*pb++ = PROP_CODE_REQ;
+	data = pb;
+	*pb++ = 0;
+	*pb++ = 0;
+	*pb++ = PROP_TAG_END;
+
+	if(send_prop(propbuf) == -1) {
+		return -1;
+	}
+	*xsz = data[0];
+	*ysz = data[1];
+	return 0;
 }
 
 int prop_setvres(int xsz, int ysz)
 {
 	uint32_t *pb = propbuf;
 
-	*pb++ = 0;
+	*pb++ = 32;
 	*pb++ = 0;
 	*pb++ = PROP_TAG_VIRTRES | PROP_TAG_SET;
 	*pb++ = 8;	/* data size */
@@ -120,17 +189,97 @@ int prop_setvres(int xsz, int ysz)
 	*pb++ = xsz;
 	*pb++ = ysz;
 	*pb++ = PROP_TAG_END;
-	propbuf[0] = (char*)pb - (char*)propbuf;
 
 	return send_prop(propbuf);
 }
 
-void *prop_allocbuf(void)
+int prop_getvres(int *xsz, int *ysz)
 {
 	uint32_t *pb = propbuf;
 	uint32_t *data;
 
+	*pb++ = 32;
 	*pb++ = 0;
+	*pb++ = PROP_TAG_VIRTRES;
+	*pb++ = 8;
+	*pb++ = PROP_CODE_REQ;
+	data = pb;
+	*pb++ = 0;
+	*pb++ = 0;
+	*pb++ = PROP_TAG_END;
+
+	if(send_prop(propbuf) == -1) {
+		return -1;
+	}
+	*xsz = data[0];
+	*ysz = data[1];
+	return 0;
+}
+
+int prop_setdepth(int bpp)
+{
+	uint32_t *pb = propbuf;
+
+	*pb++ = 32;
+	*pb++ = 0;
+	*pb++ = PROP_TAG_DEPTH | PROP_TAG_SET;
+	*pb++ = 4;
+	*pb++ = PROP_CODE_REQ;
+	*pb++ = bpp;
+	*pb++ = PROP_TAG_END;
+	*pb++ = 0;	/* padding */
+
+	return send_prop(propbuf);
+}
+
+int prop_getdepth(void)
+{
+	uint32_t *pb = propbuf;
+	uint32_t *data;
+
+	*pb++ = 32;
+	*pb++ = 0;
+	*pb++ = PROP_TAG_DEPTH;
+	*pb++ = 4;	/* data size */
+	*pb++ = PROP_CODE_REQ;
+	data = pb;
+	*pb++ = 0;
+	*pb++ = PROP_TAG_END;
+	*pb++ = 0;	/* padding */
+
+	if(send_prop(propbuf) == -1) {
+		return 0;
+	}
+	return *data;
+}
+
+int prop_getpitch(void)
+{
+	uint32_t *pb = propbuf;
+	uint32_t *data;
+
+	*pb++ = 32;
+	*pb++ = 0;
+	*pb++ = PROP_TAG_PITCH;
+	*pb++ = 4;	/* data size */
+	*pb++ = PROP_CODE_REQ;
+	data = pb;
+	*pb++ = 0;
+	*pb++ = PROP_TAG_END;
+	*pb++ = 0;	/* padding */
+
+	if(send_prop(propbuf) == -1) {
+		return 0;
+	}
+	return *data;
+}
+
+void *prop_allocbuf(int *size)
+{
+	uint32_t *pb = propbuf;
+	uint32_t *data;
+
+	*pb++ = 32;
 	*pb++ = 0;
 	*pb++ = PROP_TAG_ALLOCBUF;
 	*pb++ = 8;	/* data size */
@@ -139,13 +288,12 @@ void *prop_allocbuf(void)
 	*pb++ = 16;	/* alignment */
 	*pb++ = 0;
 	*pb++ = PROP_TAG_END;
-	propbuf[0] = (char*)pb - (char*)propbuf;
 
 	if(send_prop(propbuf) == -1) {
 		return 0;
 	}
-
-	return (void*)bus2phys(*data);
+	*size = data[1];
+	return (void*)bus2phys(data[0]);
 }
 
 uint32_t mb_read(int chan)

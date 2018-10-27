@@ -3,9 +3,10 @@
 	.section .startup
 	.code 32
 
+startup:
 	ldr sp, =_stacktop
 
-	mov r0, #1
+	mov r0, #2
 	bl dbgled
 
 	@ clear bss
@@ -23,18 +24,21 @@
 	mov r0, #0
 	bl dbgled
 
-halt:	wfe
-	b halt
+	.global exit
+exit:	wfe
+	b exit
 
+	.global dbgled
 dbgled:
 	ldr r3, =0x3f200000	@ gpio base
 	ldr r2, =0x9000		@ gpio 24 and 25 -> output
 	str r2, [r3, #8]	@ store to GPFSEL2
 	ldr r2, =0x01000000	@ bit 24
-	teq r0, #0
-	streq r2, [r3, #0x1c]	@ GPSET0
-	strne r2, [r3, #0x28]	@ GPCLR0
+	tst r0, #1
+	strne r2, [r3, #0x1c]	@ GPSET0
+	streq r2, [r3, #0x28]	@ GPCLR0
 	lsl r2, #1
+	tst r0, #2
 	strne r2, [r3, #0x1c]	@ GPSET0
 	streq r2, [r3, #0x28]	@ GPCLR0
 	bx lr
