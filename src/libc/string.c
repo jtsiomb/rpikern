@@ -8,3 +8,13 @@ void *memset(void *ptr, int val, int size)
 	}
 	return ptr;
 }
+
+void *memcpy(void *dest, void *src, int size)
+{
+	unsigned char *d = dest;
+	unsigned char *s = src;
+	while(size--) {
+		*d++ = *s++;
+	}
+	return dest;
+}

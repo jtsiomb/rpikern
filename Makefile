@@ -26,7 +26,7 @@ CFLAGS = $(arch) $(warn) $(opt) $(dbg) $(gccopt) $(inc) $(def)
 ASFLAGS = $(arch) $(dbg) $(inc)
 LDFLAGS = -nostdlib -T rpikern.ld -print-gc-sections
 
-QEMU_FLAGS = -m 256 -M raspi2 -serial stdio
+QEMU_FLAGS = -m 256 -M raspi2 -serial stdio -d guest_errors
 
 
 $(bin): $(elf)
@@ -52,3 +52,7 @@ cleandep:
 .PHONY: run
 run: $(elf)
 	qemu-system-arm $(QEMU_FLAGS) -kernel $(elf)
+
+.PHONY: disasm
+disasm: $(elf)
+	$(toolprefix)objdump -d $<

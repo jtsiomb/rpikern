@@ -1,19 +1,11 @@
-/* mailbox registers (MB 0: input  1: output)
- * function | MB 0 | MB 1
- *  rd/wr   | 00   | 20      ( upper 28: data, lower 4: channel )
- *  peek    | 10   | 30
- *  sender  | 14   | 34
- *  status  | 18   | 38
- *  config  | 1c   | 3c
- *
- * channel 1: framebuffer
- * channel 8: request
- *
- * read: read status reg loop while empty flag is set
- * write: read status loop while full flag is set
- */
 #include <string.h>
 #include <stdint.h>
+#include "asm.h"
+#include "serial.h"
+
+#define WIDTH	640
+#define HEIGHT	480
+#define BPP		16
 
 #ifdef RPI1
 #define IOBASEADDR	0x20000000
@@ -61,6 +53,7 @@
 
 
 void panic(void);
+static int send_prop(uint32_t *buf);
 int prop_blankscr(int onoff);
 int prop_setres(int xsz, int ysz);
 int prop_getres(int *xsz, int *ysz);
@@ -77,48 +70,87 @@ void mb_write(int chan, uint32_t val);
 void dbgled(int x);
 void exit(int x);
 
+uint32_t propbuf[64] __attribute__((aligned(16)));
+uint32_t premade[] __attribute__((aligned(16))) = {
+	80,				/* size */
+	0,				/* request */
+	0x00048003, 8, 0, WIDTH, HEIGHT,	/* set phys */
+	0x00048004, 8, 0, WIDTH, HEIGHT,	/* set virt */
+	0x00048005, 4, 0, BPP,				/* set depth */
+	0,				/* end */
+	0, 0, 0			/* padding */
+};
+
+
 int main(void)
 {
-	int i, j, bpp, fbsize, pitch;
-	uint16_t *fb;
+	int i, j, bpp, fbsize, pitch, xsz, ysz;
+#if BPP == 16
+	uint16_t *fb, *fbptr;
+#elif BPP == 24
+	unsigned char *fb, *fbptr;
+#elif BPP == 32
+	uint32_t *fb, *fbptr;
+#endif
 
-	if(prop_setres(640, 480) == -1) panic();
-	if(prop_setvres(640, 480) == -1) panic();
-	if(prop_setdepth(16) == -1) panic();
+	disable_intr();
+
+	init_serial(115200);
+	ser_printstr("starting rpkern\n");
+
+	/*if(send_prop(premade) == -1) panic();*/
+
+	/*if(prop_setres(WIDTH, HEIGHT) == -1) panic();*/
+	if(prop_setvres(WIDTH, HEIGHT) == -1) panic();
+	if(prop_setdepth(BPP) == -1) panic();
 	if(!(fb = prop_allocbuf(&fbsize))) panic();
+
+	prop_getvres(&xsz, &ysz);
 	bpp = prop_getdepth();
 	pitch = prop_getpitch();
 
-	if(bpp != 16) panic();
+	if(xsz != WIDTH || ysz != HEIGHT) panic();
+	if(bpp != BPP) panic();
 
-	for(i=0; i<480; i++) {
-		for(j=0; j<640; j++) {
+	fbptr = fb;
+	for(i=0; i<HEIGHT; i++) {
+		for(j=0; j<WIDTH; j++) {
 			int xor = i ^ j;
 			int r = (xor >> 1) & 0xff;
 			int g = xor & 0xff;
 			int b = (xor << 1) & 0xff;
 
-			*fb++ = ((r << 8) & 0xf800) | ((g << 3) & 0x7e0) | ((b >> 3) & 0x1f);
+#if BPP == 16
+			*fbptr++ = ((r << 8) & 0xf800) | ((g << 3) & 0x7e0) | ((b >> 3) & 0x1f);
+#elif BPP == 24
+			*fbptr++ = r;
+			*fbptr++ = g;
+			*fbptr++ = b;
+#elif BPP == 32
+			*fbptr++ = ((r << 16) & 0xff0000) | ((g << 8) & 0xff00) | (b & 0xff);
+#endif
 		}
 
-		//fb += pitch / 2 - 640;
+		//fbptr += pitch / 2 - 640;
 	}
+
+	fb[0] = 0xf800;
 
 	return 0;
 }
 
 void panic(void)
 {
-	dbgled(2);
+	dbgled(1);
 	exit(0);
 }
 
-static uint32_t propbuf[64] __attribute__((aligned(16)));
-
 static int send_prop(uint32_t *buf)
 {
+	mem_barrier();
 	mb_write(MB_CHAN_PROP, (uint32_t)buf >> 4);
 	mb_read(MB_CHAN_PROP);
+	mem_barrier();
 	return propbuf[1] == PROP_RESP_OK ? 0 : -1;
 }
 
@@ -300,7 +332,9 @@ uint32_t mb_read(int chan)
 {
 	uint32_t val;
 	do {
+		mem_barrier();
 		while(REG_MB_STAT & MB_STAT_EMPTY);
+		mem_barrier();
 		val = REG_MB_READ;
 	} while((val & 0xf) != chan);
 	return val >> 4;
@@ -308,6 +342,10 @@ uint32_t mb_read(int chan)
 
 void mb_write(int chan, uint32_t val)
 {
-	while(REG_MB_STAT & MB_STAT_FULL);
+	mem_barrier();
+	while(REG_MB_STAT & MB_STAT_FULL) {
+		mem_barrier();
+	}
 	REG_MB_WRITE = (val << 4) | chan;
+	mem_barrier();
 }
