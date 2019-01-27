@@ -84,8 +84,6 @@ static inline void gpio_fsel(int x, int f)
 	}
 }
 
-void delay(uint32_t x);	/* in startup.s */
-
 static inline void gpio_pullups(uint32_t mask0, uint32_t mask1, int state)
 {
 	REG_GPPUD = state;

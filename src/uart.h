@@ -4,7 +4,7 @@
 #include "config.h"
 
 #define UART0_BASE		(IO_BASE | 0x201000)
-#define UART0_REG(x)	*(volatile uint32_t*)(UART0_BASE | (x))
+#define UART0_REG(x)	(*(volatile uint32_t*)(UART0_BASE | (x)))
 
 #define REG_DR		UART0_REG(0x00)	/* data register */
 #define REG_RSRECR	UART0_REG(0x04)	/* receive status & error clear */

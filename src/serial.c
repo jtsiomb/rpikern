@@ -15,15 +15,15 @@ void init_serial(int baud)
 	/* disable pullups for GPIO 14 & 15 */
 	gpio_pullups(0xc000, 0, PUD_DISABLE);
 	/* select alt0 function for GPIO 14 & 15 */
-	gpio_fsel(14, FSEL_ALT0);
-	gpio_fsel(15, FSEL_ALT0);
+	/*gpio_fsel(14, FSEL_ALT0);
+	gpio_fsel(15, FSEL_ALT0);*/
 
 	REG_ICR = 0x7ff;	/* clear pending interrupts */
 
 	/* calculate baud rate divisor */
 	bdiv_fp6 = (UART_CLK << 6) / (16 * baud);
-	REG_IBRD = 1;//(bdiv_fp6 >> 6) & 0xffff;	/* 16 bits integer part */
-	REG_FBRD = 40;//bdiv_fp6 & 0x3f;		/* 6 bits fractional precision */
+	REG_IBRD = (bdiv_fp6 >> 6) & 0xffff;	/* 16 bits integer part */
+	REG_FBRD = bdiv_fp6 & 0x3f;		/* 6 bits fractional precision */
 
 	/* line control: fifo enable, 8n1 */
 	REG_LCRH = LCRH_FIFOEN | LCRH_8BITS;
