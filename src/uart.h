@@ -1,7 +1,9 @@
 #ifndef UART_PL011_H_
 #define UART_PL011_H_
 
-#define UART0_BASE		0x3f201000
+#include "config.h"
+
+#define UART0_BASE		(IO_BASE | 0x201000)
 #define UART0_REG(x)	*(volatile uint32_t*)(UART0_BASE | (x))
 
 #define REG_DR		UART0_REG(0x00)	/* data register */

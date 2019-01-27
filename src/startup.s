@@ -43,5 +43,10 @@ dbgled:
 	streq r2, [r3, #0x28]	@ GPCLR0
 	bx lr
 
+	.global delay
+delay:
+	subs r0, r0, #1
+	bne delay
+	bx lr
 
 @ vi:set filetype=armasm:

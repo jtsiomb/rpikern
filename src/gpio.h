@@ -1,9 +1,10 @@
 #ifndef GPIO_H_
 #define GPIO_H_
 
+#include "config.h"
 #include "asm.h"
 
-#define GPIO_BASE	0x3f200000
+#define GPIO_BASE	(IO_BASE | 0x200000)
 #define GPIO_REG(x)	(*(volatile uint32_t*)(GPIO_BASE | (x)))
 
 /* function select */
@@ -82,6 +83,8 @@ static inline void gpio_fsel(int x, int f)
 		*(volatile uint32_t*)(GPIO_BASE | fseltab[x][0]) = val;
 	}
 }
+
+void delay(uint32_t x);	/* in startup.s */
 
 static inline void gpio_pullups(uint32_t mask0, uint32_t mask1, int state)
 {
