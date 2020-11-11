@@ -2,4 +2,4 @@
 
 mount /media/usbmass && \
 	cp rpikern.bin /media/usbmass/kernel7.img && \
-	umount /media/usbmass && sync
+	umount /media/usbmass

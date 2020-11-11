@@ -26,7 +26,7 @@ CFLAGS = $(arch) $(warn) $(opt) $(dbg) $(gccopt) $(inc) $(def)
 ASFLAGS = $(arch) $(dbg) $(inc)
 LDFLAGS = -nostdlib -T rpikern.ld -print-gc-sections
 
-QEMU_FLAGS = -m 256 -M raspi2 -serial stdio -d guest_errors
+QEMU_FLAGS = -m 1024 -M raspi2 -serial stdio -d guest_errors
 
 
 $(bin): $(elf)
@@ -56,3 +56,8 @@ run: $(elf)
 .PHONY: disasm
 disasm: $(elf)
 	$(toolprefix)objdump -d $<
+
+.PHONY: install
+install: $(bin) $(elf)
+	cp $(bin) /srv/tftp/$(bin)
+	cp $(elf) /srv/tftp/$(elf)

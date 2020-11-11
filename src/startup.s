@@ -4,10 +4,13 @@
 	.code 32
 
 startup:
-	ldr sp, =_stacktop
+	@ stop all but one of the cores
+	mrc p15, 0, r0, c0, c0, 5
+	ands r0, r0, #0xff
+	bne exit
 
-	mov r0, #2
-	bl dbgled
+	@ setup stack
+	ldr sp, =_stacktop
 
 	@ clear bss
 	ldr r0, =_bss_start
@@ -19,10 +22,7 @@ startup:
 	subs r1, #4
 	bne 0b
 1:
-	bl main
-
-	mov r0, #0
-	bl dbgled
+	blx main
 
 	.global exit
 exit:	wfe

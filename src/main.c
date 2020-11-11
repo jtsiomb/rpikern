@@ -17,8 +17,6 @@ int main(void)
 	static char cmdbuf[256];
 	static int cmdend;
 
-	dbgled(2);
-
 	init_serial(115200);
 	ser_printstr("starting rpikern\n");
 
@@ -56,7 +54,7 @@ int main(void)
 
 void panic(void)
 {
-	dbgled(1);
+	ser_printstr("PANIC!\n");
 	exit(0);
 }
 
