@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include "asm.h"
 #include "serial.h"
+#include "video.h"
 
 void dbgled(int x);
 void exit(int x);
@@ -18,8 +19,11 @@ int main(void)
 	static int cmdend;
 
 	init_serial(115200);
-	ser_printstr("starting rpikern\n");
+	ser_printstr("Starting rpikern\n");
 
+	video_init();
+
+	ser_printstr("Going interactive\n");
 	for(;;) {
 		int c = ser_getchar();
 

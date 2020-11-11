@@ -58,6 +58,5 @@ disasm: $(elf)
 	$(toolprefix)objdump -d $<
 
 .PHONY: install
-install: $(bin) $(elf)
+install: $(bin)
 	cp $(bin) /srv/tftp/$(bin)
-	cp $(elf) /srv/tftp/$(elf)
