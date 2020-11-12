@@ -17,8 +17,8 @@ endif
 
 warn = -pedantic -Wall
 dbg = -g
-inc = -Isrc/libc
-gccopt = -marm -fpic -ffreestanding -nostdinc
+inc = -Isrc -Isrc/libc
+gccopt = -marm -fpic -ffreestanding -nostdinc -ffast-math -fno-math-errno
 #arch = -mcpu=arm1176jzf-s
 arch = -mcpu=cortex-a7
 

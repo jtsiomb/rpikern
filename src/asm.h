@@ -10,4 +10,6 @@
 		"bne 0b\n\t" \
 		:: "r"(x) : "cc")
 
+#define halt_cpu() asm volatile("wfe");
+
 #endif	/* ASM_H_ */

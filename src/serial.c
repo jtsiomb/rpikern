@@ -36,6 +36,8 @@ void init_serial(int baud)
 
 void ser_putchar(int c)
 {
+	if(c == '\n') ser_putchar('\r');
+
 	while(REG_FR & FR_TXFF);
 	REG_DR = c & 0xff;
 }
@@ -49,9 +51,6 @@ int ser_getchar(void)
 void ser_printstr(const char *s)
 {
 	while(*s) {
-		if(*s == '\n') {
-			ser_putchar('\r');
-		}
 		ser_putchar(*s++);
 	}
 }

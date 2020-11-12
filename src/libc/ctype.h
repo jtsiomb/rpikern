@@ -1,5 +1,5 @@
-#ifndef CTYPES_H_
-#define CTYPES_H_
+#ifndef CTYPE_H_
+#define CTYPE_H_
 
 int isalnum(int c);
 int isalpha(int c);
@@ -14,5 +14,4 @@ int isspace(int c);
 int toupper(int c);
 int tolower(int c);
 
-
-#endif	/* CTYPES_H_ */
+#endif	/* CTYPE_H_ */

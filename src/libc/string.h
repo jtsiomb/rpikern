@@ -1,9 +1,34 @@
-#ifndef LIBC_STRING_H_
-#define LIBC_STRING_H_
+#ifndef STRING_H_
+#define STRING_H_
 
-void *memset(void *ptr, int val, int size);
-void *memcpy(void *dest, void *src, int size);
+#include <stdlib.h>
 
-int strcmp(const char *a, const char *b);
+void *memset(void *s, int c, size_t n);
 
-#endif	/* LIBC_STRING_H_ */
+void *memcpy(void *dest, const void *src, size_t n);
+void *memmove(void *dest, const void *src, size_t n);
+
+int memcmp(void *aptr, void *bptr, size_t n);
+
+size_t strlen(const char *s);
+
+char *strchr(const char *s, int c);
+char *strrchr(const char *s, int c);
+
+char *strstr(const char *str, const char *substr);
+char *strcasestr(const char *str, const char *substr);
+
+int strcmp(const char *s1, const char *s2);
+int strcasecmp(const char *s1, const char *s2);
+
+int strncmp(const char *s1, const char *s2, int n);
+int strncasecmp(const char *s1, const char *s2, int n);
+
+char *strcpy(char *dest, const char *src);
+char *strcat(char *dest, const char *src);
+
+char *strncpy(char *dest, const char *src, int n);
+
+char *strerror(int err);
+
+#endif	/* STRING_H_ */
