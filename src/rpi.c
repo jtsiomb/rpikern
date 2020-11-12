@@ -40,6 +40,13 @@
 
 #define TMCTL_PRESCALER(x)	(((uint32_t)(x) & 0xff) << 16)
 
+/* watchdog */
+#define PM_RSTC_REG		IOREG(0x10001c)
+#define PM_WDOG_REG		IOREG(0x100024)
+
+#define PM_PASSWD			0x5a000000
+#define PMRSTC_WRCFG_FULL_RESET	0x00000020
+#define PMRSTC_WRCFG_CLEAR		0xffffffcf
 
 /* MAILBOX */
 #define MBOX_READ_REG	IOREG(0xb880)
@@ -88,6 +95,12 @@ static int detect(void)
 	return -1;
 }
 
+void rpi_reboot(void)
+{
+	PM_WDOG_REG = PM_PASSWD | 1;
+	PM_RSTC_REG = PM_PASSWD | (PM_RSTC_REG & PMRSTC_WRCFG_CLEAR) | PMRSTC_WRCFG_FULL_RESET;
+	for(;;) halt_cpu();
+}
 
 void rpi_mbox_send(int chan, uint32_t msg)
 {

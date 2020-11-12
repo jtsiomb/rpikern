@@ -12,6 +12,8 @@
 
 void dbgled(int x);
 
+void reboot(void);
+
 static void cmdrun(char *cmd);
 
 int main(void)
@@ -61,6 +63,12 @@ int main(void)
 	return 0;
 }
 
+void reboot(void)
+{
+	printf("Rebooting ...\n");
+	rpi_reboot();
+}
+
 static void cmdrun(char *cmd)
 {
 	char *ptr, *args;
@@ -71,7 +79,9 @@ static void cmdrun(char *cmd)
 	*ptr = 0;
 	args = ptr + 1;
 
-	if(strcmp(cmd, "help") == 0) {
+	if(strcmp(cmd, "reboot") == 0) {
+		reboot();
+	} else if(strcmp(cmd, "help") == 0) {
 		printf("help not implemented yet\n");
 	} else if(strcmp(cmd, "ver") == 0) {
 		printf("rpikern version 0.0\n");
