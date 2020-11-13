@@ -18,7 +18,7 @@ endif
 warn = -pedantic -Wall
 dbg = -g
 inc = -Isrc -Isrc/libc
-gccopt = -marm -fpic -ffreestanding -nostdinc -ffast-math -fno-math-errno
+gccopt = -marm -fno-pic -ffreestanding -nostdinc -ffast-math -fno-math-errno
 #arch = -mcpu=arm1176jzf-s
 arch = -mcpu=cortex-a7
 
@@ -26,7 +26,7 @@ CFLAGS = $(arch) $(warn) $(opt) $(dbg) $(gccopt) $(inc) $(def)
 ASFLAGS = $(arch) $(dbg) $(inc)
 LDFLAGS = -nostdlib -T rpikern.ld -print-gc-sections
 
-QEMU_FLAGS = -m 1024 -M raspi2 -serial stdio -d guest_errors
+QEMU_FLAGS = -vnc :0 -m 1024 -M raspi2 -serial stdio -d guest_errors
 
 
 $(bin): $(elf)

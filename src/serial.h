@@ -6,6 +6,8 @@ void init_serial(int baud);
 void ser_putchar(int c);
 int ser_getchar(void);
 
+int ser_pending(void);
+
 void ser_printstr(const char *s);
 
 #endif	/* SERIAL_H_ */

@@ -10,6 +10,7 @@ void init_serial(int baud)
 {
 	uint32_t bdiv_fp6;
 
+	mem_barrier();
 	REG_CR = 0;		/* disable UART */
 
 	/* disable pullups for GPIO 14 & 15 */
@@ -32,20 +33,30 @@ void init_serial(int baud)
 
 	/* enable UART RX&TX */
 	REG_CR = CR_UARTEN | CR_TXEN | CR_RXEN;
+	mem_barrier();
 }
 
 void ser_putchar(int c)
 {
 	if(c == '\n') ser_putchar('\r');
 
+	mem_barrier();
 	while(REG_FR & FR_TXFF);
 	REG_DR = c & 0xff;
+	mem_barrier();
 }
 
 int ser_getchar(void)
 {
+	mem_barrier();
 	while(REG_FR & FR_RXFE);
 	return REG_DR & 0xff;
+}
+
+int ser_pending(void)
+{
+	mem_barrier();
+	return (REG_FR & FR_RXFE) == 0;
 }
 
 void ser_printstr(const char *s)

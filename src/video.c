@@ -6,100 +6,64 @@
 #include "video.h"
 #include "mem.h"
 #include "debug.h"
-
-/* needs to by 16-byte aligned, because the address we send over the mailbox
- * interface, will have its 4 least significant bits masked off and taken over
- * by the mailbox id
- */
-static char propbuf[256] __attribute__((aligned(16)));
+#include "sysctl.h"
 
 static void *fb_pixels;
-static int fb_width, fb_height, fb_depth, fb_size;
+static int scr_width, scr_height;
+static int fb_width, fb_height, fb_depth, fb_size, fb_pitch;
+static int fb_xoffs, fb_yoffs;
 
 int video_init(void)
 {
-	int i;
-	struct rpi_prop_header *hdr = (struct rpi_prop_header*)propbuf;
-	struct rpi_prop *prop = (struct rpi_prop*)(hdr + 1);
+	int i, j;
+	struct rpi_prop *prop;
+	uint32_t *fbptr;
 
-	hdr->size = sizeof propbuf;
-	hdr->res = 0;
-
-	fb_width = 1024;
-	fb_height = 600;
+	scr_width = 1024;
+	scr_height = 576;
+	/*fb_width = 1920;
+	fb_height = 1024;*/
+	fb_width = scr_width;
+	fb_height = scr_height;
 	fb_depth = 32;
 
-	prop->id = RPI_TAG_SETFBPHYS;
-	prop->size = 8;
-	prop->res = 0;
-	prop->data[0] = fb_width;
-	prop->data[1] = fb_height;
-	prop = RPI_PROP_NEXT(prop);
+	printf("Requesting video mode: %dx%d %d bpp (fb:%dx%d)\n", scr_width, scr_height,
+			fb_depth, fb_width, fb_height);
 
-	prop->id = RPI_TAG_SETFBVIRT;
-	prop->size = 8;
-	prop->res = 0;
-	prop->data[0] = fb_width;
-	prop->data[1] = fb_height;
-	prop = RPI_PROP_NEXT(prop);
+	rpi_prop(RPI_TAG_ALLOCFB, 16);
+	rpi_prop(RPI_TAG_SETFBVIRT, scr_width, scr_height);
+	rpi_prop(RPI_TAG_SETFBPHYS, fb_width, fb_height);
+	rpi_prop(RPI_TAG_SETFBDEPTH, fb_depth);
 
-	prop->id = RPI_TAG_SETFBDEPTH;
-	prop->size = 4;
-	prop->res = 0;
-	prop->data[0] = fb_depth;
-	prop = RPI_PROP_NEXT(prop);
+	rpi_prop_send();
 
-	prop->id = RPI_TAG_ALLOCFB;
-	prop->size = 4;
-	prop->res = 0;
-	prop->data[0] = 4;	/* alignment */
-	prop = RPI_PROP_NEXT(prop);
-
-	prop->id = 0;
-	prop->size = 0;
-	prop->res = 0;
-	prop = RPI_PROP_NEXT(prop);
-
-	printf("Requesting video mode: %dx%d (%d bpp)\n", fb_width, fb_height, fb_depth);
-
-	rpi_mbox_send(RPI_MBOX_PROP, RPI_MEM_BUS_COHERENT(propbuf));
-	while(rpi_mbox_recv(RPI_MBOX_PROP) != RPI_MEM_BUS_COHERENT(propbuf));
-
-	hexdump(propbuf, sizeof propbuf);
-
-	if(hdr->res != 0x80000000) {
-		printf("Request failed, error: %x\n", hdr->res);
-		return -1;
-	}
-
-	prop = (struct rpi_prop*)(hdr + 1);
-	while(prop->id) {
-		prop->size = prop->res & 0x7fffffff;
-
+	while((prop = rpi_prop_next())) {
 		switch(prop->id) {
 		case RPI_TAG_SETFBPHYS:
-			printf("setfbphys");
-			break;
-
-		case RPI_TAG_SETFBVIRT:
-			printf("setfbvirt");
+			printf(" setfbphys");
 			fb_width = prop->data[0];
 			fb_height = prop->data[1];
 			break;
 
+		case RPI_TAG_SETFBVIRT:
+			printf(" setfbvirt");
+			scr_width = prop->data[0];
+			scr_height = prop->data[1];
+			break;
+
 		case RPI_TAG_SETFBDEPTH:
-			printf("setfbdepth");
+			printf(" setfbdepth");
 			fb_depth = prop->data[0];
 			break;
 
 		case RPI_TAG_ALLOCFB:
-			printf("allocfb");
-			fb_pixels = (void*)prop->data[0];
+			printf(" allocfb");
+			fb_pixels = (void*)(prop->data[0] & 0x3fffffff);
 			fb_size = prop->data[1];
 			break;
 
 		default:
-			printf("tag %x", prop->id);
+			printf(" tag %x", prop->id);
 			break;
 		}
 
@@ -108,12 +72,100 @@ int video_init(void)
 			printf(" %u", prop->data[i]);
 		}
 		putchar('\n');
-		prop = RPI_PROP_NEXT(prop);
 	}
 
-	printf("Got video mode: %dx%d (%d bpp) at %p (%d bytes)\n", fb_width, fb_height,
-			fb_depth, fb_pixels, fb_size);
+	if(!fb_pixels) {
+		rpi_prop(RPI_TAG_ALLOCFB, 16);
+		if(rpi_prop_send() == -1 || !(prop = rpi_prop_find(RPI_TAG_ALLOCFB))) {
+			printf("Failed to allocate framebuffer\n");
+			return -1;
+		}
+		fb_pixels = (void*)(prop->data[0] & 0x3fffffff);
+		fb_size = prop->data[1];
+	}
 
-	memset(fb_pixels, 0, fb_size);
+	rpi_prop(RPI_TAG_GETFBPITCH);
+	rpi_prop(RPI_TAG_GETFBOFFS);
+	rpi_prop_send();
+	/*
+	if(rpi_prop_send() == -1) {
+		printf("Failed to get pitch\n");
+		return -1;
+	}
+	*/
+
+	while((prop = rpi_prop_next())) {
+		switch(prop->id) {
+		case RPI_TAG_GETFBPITCH:
+			fb_pitch = prop->data[0];
+			break;
+
+		case RPI_TAG_GETFBOFFS:
+			fb_xoffs = prop->data[0];
+			fb_yoffs = prop->data[1];
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	printf("Got video mode: %dx%d (%d bpp)\n", scr_width, scr_height, fb_depth);
+	printf("Framebuffer: %dx%d at %p (%d bytes)\n", fb_width, fb_height, fb_pixels, fb_size);
+	printf("  virtual offset: %d, %d\n", fb_xoffs, fb_yoffs);
+	printf("  scanline pitch: %d\n", fb_pitch);
+
+	fbptr = fb_pixels;
+	for(i=0; i<fb_height; i++) {
+		for(j=0; j<fb_width; j++) {
+			int r = i ^ j;
+			int g = (i ^ j) >> 1;
+			int b = (i ^ j) >> 2;
+			fbptr[j] = b | (g << 8) | (r << 16) | 0xff000000;
+		}
+		fbptr += fb_pitch >> 2;
+	}
+
+	sysctl_dcache_clean_inval((uint32_t)fb_pixels, fb_size);
 	return 0;
+}
+
+int video_scroll(int x, int y)
+{
+	struct rpi_prop *prop;
+
+	rpi_prop(RPI_TAG_SETFBOFFS, x, y);
+	if(rpi_prop_send() == -1 || !(prop = rpi_prop_find(RPI_TAG_SETFBOFFS))) {
+		return -1;
+	}
+
+	fb_xoffs = prop->data[0];
+	fb_yoffs = prop->data[1];
+	return 0;
+}
+
+void video_update(int dt)
+{
+	static int dirx = 1, diry = 1;
+	int nx, ny;
+
+	nx = fb_xoffs + dirx * dt;
+	ny = fb_yoffs + diry * dt;
+
+	if(nx < 0) {
+		nx = 0;
+		dirx = -dirx;
+	} else if(nx + scr_width >= fb_width) {
+		nx = fb_width - scr_width;
+		dirx = -dirx;
+	}
+	if(ny < 0) {
+		ny = 0;
+		diry = -diry;
+	} else if(ny + scr_height >= fb_height) {
+		ny = fb_height - scr_height;
+		diry = -diry;
+	}
+
+	video_scroll(nx, ny);
 }
