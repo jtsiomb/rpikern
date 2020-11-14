@@ -26,6 +26,9 @@
 #define RPI_TAG_GETFBPITCH	0x040008
 #define RPI_TAG_SETFBOFFS	0x048009
 #define RPI_TAG_GETFBOFFS	0x040009
+/* NOTE: for every new tag added, a new entry needs to be added to the tag
+ * buffer size struct in rpi.c
+ */
 
 struct rpi_prop_header {
 	uint32_t size;

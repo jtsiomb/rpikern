@@ -40,38 +40,27 @@ int video_init(void)
 	while((prop = rpi_prop_next())) {
 		switch(prop->id) {
 		case RPI_TAG_SETFBPHYS:
-			printf(" setfbphys");
 			fb_width = prop->data[0];
 			fb_height = prop->data[1];
 			break;
 
 		case RPI_TAG_SETFBVIRT:
-			printf(" setfbvirt");
 			scr_width = prop->data[0];
 			scr_height = prop->data[1];
 			break;
 
 		case RPI_TAG_SETFBDEPTH:
-			printf(" setfbdepth");
 			fb_depth = prop->data[0];
 			break;
 
 		case RPI_TAG_ALLOCFB:
-			printf(" allocfb");
 			fb_pixels = (void*)(prop->data[0] & 0x3fffffff);
 			fb_size = prop->data[1];
 			break;
 
 		default:
-			printf(" tag %x", prop->id);
 			break;
 		}
-
-		printf(" %08x (%u bytes):", prop->res, prop->size);
-		for(i=0; i<prop->size / 4; i++) {
-			printf(" %u", prop->data[i]);
-		}
-		putchar('\n');
 	}
 
 	if(!fb_pixels) {

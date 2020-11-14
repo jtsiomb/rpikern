@@ -1,8 +1,8 @@
 #ifndef ASM_H_
 #define ASM_H_
 
-#define enable_intr()	asm volatile ("cpsie i")
-#define disable_intr()	asm volatile ("cpsid i")
+#define enable_intr()	asm volatile ("cpsie if")
+#define disable_intr()	asm volatile ("cpsid if")
 #define mem_barrier()	asm volatile ("dmb" ::: "memory")
 
 #define delay(x)  asm volatile ( \

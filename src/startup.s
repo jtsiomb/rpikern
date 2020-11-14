@@ -3,6 +3,7 @@
 	.section .startup
 	.code 32
 
+	.global startup
 startup:
 	@ stop all but one of the cores
 	mrc p15, 0, r0, c0, c0, 5

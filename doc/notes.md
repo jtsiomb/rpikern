@@ -1,5 +1,8 @@
 Raspberry Pi2 notes
 ===================
+
+Memory access ordering
+----------------------
 Accessing different peripherals migh return results out of order. See bcm2835
 spec section 1.3. Use memory barriers as follows:
  - place write barrier before the first write to a peripheral
@@ -9,6 +12,12 @@ Multiple accesses to the same peripheral in a row do not require barriers.
 
 Interrupt handlers should have a read barrier before their first read, and end
 with a write barrier.
+
+Cache coherency
+---------------
+Two types of cache management:
+ - cache cleaning (write-back caches)
+ - cache invalidation (all caches)
 
 Cache clean and invalidate operations are also needed before the GPU can see our
 command buffers... see:

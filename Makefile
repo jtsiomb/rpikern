@@ -18,7 +18,7 @@ endif
 warn = -pedantic -Wall
 dbg = -g
 inc = -Isrc -Isrc/libc
-gccopt = -marm -fno-pic -ffreestanding -nostdinc -ffast-math -fno-math-errno
+gccopt = -marm -fno-pic -ffreestanding -nostdinc -ffast-math -fno-math-errno -MMD
 #arch = -mcpu=arm1176jzf-s
 arch = -mcpu=cortex-a7
 
@@ -37,10 +37,6 @@ $(elf): $(obj)
 
 -include $(dep)
 
-%.d: %.c
-	@echo 'gen dep $@ ...'
-	@$(CPP) $(CFLAGS) $< -MM -MT $(@:.d=.o) >$@
-
 .PHONY: clean
 clean:
 	rm -f $(obj) $(bin) $(elf) link.map
@@ -55,7 +51,7 @@ run: $(elf)
 
 .PHONY: disasm
 disasm: $(elf)
-	$(toolprefix)objdump -d $<
+	$(toolprefix)objdump -D $<
 
 .PHONY: install
 install: $(bin)

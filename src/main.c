@@ -8,7 +8,9 @@
 #include "rpi.h"
 #include "contty.h"
 #include "serial.h"
+#include "timer.h"
 #include "video.h"
+#include "intr.h"
 
 void dbgled(int x);
 
@@ -30,9 +32,13 @@ int main(void)
 	printf("Main RAM base: %x, size: %u bytes\n", rpi_mem_base, rpi_mem_size);
 	printf("Video RAM base: %x, size: %u bytes\n", rpi_vmem_base, rpi_vmem_size);
 
+	timer_init();
 	video_init();
 
+	enable_intr();
+
 	printf("Going interactive\n");
+
 	for(;;) {
 		while(ser_pending()) {
 			int c = getchar();
@@ -98,6 +104,9 @@ static void cmdrun(char *cmd)
 		printf("scroll up\n");
 		cur_y -= 10;
 		video_scroll(cur_x, cur_y);
+
+	} else if(strcmp(cmd, "ticks") == 0) {
+		printf("%lu\n", num_ticks);
 
 	} else if(strcmp(cmd, "help") == 0) {
 		printf("help not implemented yet\n");

@@ -1,4 +1,8 @@
 SECTIONS {
+	.vect : {
+		* (.vect*);
+	}
+
 	. = 0x00008000;
 	_stacktop = .;
 	_kern_start = .;
