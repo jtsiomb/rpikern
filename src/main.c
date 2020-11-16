@@ -24,6 +24,10 @@ int main(void)
 	static char cmdbuf[256];
 	static int cmdend;
 
+	unsigned int cpsr;
+	asm volatile("mrs %0, cpsr" : "=r"(cpsr));
+	printf("CPSR: %x (mode: %x)\n", cpsr, cpsr & 0x1f);
+
 	rpi_init();
 	/*init_serial(115200); done in rpi_init now for early debugging */
 	con_init();
@@ -32,9 +36,10 @@ int main(void)
 	printf("Main RAM base: %x, size: %u bytes\n", rpi_mem_base, rpi_mem_size);
 	printf("Video RAM base: %x, size: %u bytes\n", rpi_vmem_base, rpi_vmem_size);
 
-	timer_init();
 	video_init();
 
+	timer_init();
+	intr_init();
 	enable_intr();
 
 	printf("Going interactive\n");

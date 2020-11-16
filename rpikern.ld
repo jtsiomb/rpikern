@@ -1,8 +1,4 @@
 SECTIONS {
-	.vect : {
-		* (.vect*);
-	}
-
 	. = 0x00008000;
 	_stacktop = .;
 	_kern_start = .;
@@ -11,6 +7,7 @@ SECTIONS {
 		KEEP(* (.startup*));
 		* (.text*);
 	}
+
 	.rodata ALIGN(4): { * (.rodata*); }
 	.data ALIGN(4): { * (.data*); }
 
@@ -22,6 +19,7 @@ SECTIONS {
 	}
 	_bss_size = SIZEOF(.bss);
 
+	. = ALIGN(4);
 	_kern_size = . - _kern_start;
 	_mem_start = .;
 }

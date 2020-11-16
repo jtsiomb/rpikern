@@ -32,7 +32,7 @@ QEMU_FLAGS = -vnc :0 -m 1024 -M raspi2 -serial stdio -d guest_errors
 $(bin): $(elf)
 	$(OBJCOPY) -O binary $< $@
 
-$(elf): $(obj)
+$(elf): $(obj) rpikern.ld
 	$(LD) -o $@ $(obj) -Map link.map $(LDFLAGS)
 
 -include $(dep)
