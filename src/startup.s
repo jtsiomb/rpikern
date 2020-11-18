@@ -12,19 +12,26 @@ startup:
 	ands r0, r0, #0xff
 	bne exit
 
+	@ set the vector base to 0
+	mov r0, #0
+	mcr p15, 0, r0, c12, c0, 0
+
 	@ detect if we're running in hyp mode, and drop to svc
 	mrs r0, cpsr
 	and r1, r0, #0x1f
 	cmp r1, #0x1a
 	bne hypend
 
+	@ set HVBAR also to 0
+	mov r1, #0
+	mcr p15, 4, r1, c12, c0, 0
+
 	bic r0, #0x1f
 	orr r0, #0x13
-	@msr spsr_cxsf, r0
-	add r0, pc, #4
-	msr elr_hyp, r0
+	msr spsr_cxsf, r0
+	add lr, pc, #4
+	msr elr_hyp, lr
 	@eret
-	mov pc, r0
 hypend:
 
 	@ setup initial stacks, allow 4k stack for IRQs

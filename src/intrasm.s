@@ -39,38 +39,29 @@ intr_entry_nop:
 
 intr_entry_irq:
 	ldr sp, =_stacktop	@ HACK
+	stmfd sp!, {r0-r12,lr}
 
-	stmfd sp!, {r0, r1}
-
-	mov r0, #'.'
-	.extern ser_putchar
-	bl ser_putchar
-
-	ldr r1, =num_ticks
-	ldr r0, [r1]
-	add r0, #1
-	str r0, [r1]
-
-	@ setup next interrupt
-	ldr r1, =#0x3f003004	@ low counter in rpi2 TODO use rpi_iobase
-	ldr r0, [r1]
-	add r0, #4000		@ 1Mhz / 250hz = 4k counts
-	ldr r1, =#0x3f003010	@ compare 1 reg
-	str r0, [r1]
-
-	@ clear interrupt
-	ldr r1, =#0x3f003000
-	mov r0, #2	@ set bit 1 to clear interrupt from C1
-	str r0, [r1]
-
-	ldmfd sp!, {r0, r1}
-	subs pc, lr, #4
+	ldmfd sp!, {r0-r12,lr}
+	@subs pc, lr, #4
+	eret
 
 intr_entry_fiq:
+	@ increment ticks counter
 	ldr r9, =num_ticks
 	ldr r8, [r9]
 	add r8, #1
 	str r8, [r9]
-	subs pc, lr, #4
+	@ setup next interrupt
+	ldr r9, =#0x3f003004	@ low counter in rpi2 TODO use rpi_iobase
+	ldr r8, [r9]
+	add r8, #4000		@ 1MHz / 250hz = 4k counts
+	ldr r9, =#0x3f003010	@ comparison reg 1
+	str r8, [r9]
+	@ clear interrupt
+	ldr r9, =#0x3f003000
+	mov r8, #2	@ set bit 1 to clear interrupt from C1
+	str r8, [r9]
+	@subs pc, lr, #4
+	eret
 
 @ vi:set ft=armasm:

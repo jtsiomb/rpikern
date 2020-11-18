@@ -10,6 +10,9 @@
 		"bne 0b\n\t" \
 		:: "r"(x) : "cc")
 
-#define halt_cpu() asm volatile("wfe");
+/* TODO ifdef magic for older processors without a wfi instruction:
+ * asm volatile("mcr p15, 0, %0, c7, c0, 4":: "r"(0))
+ */
+#define halt_cpu() asm volatile("wfi");
 
 #endif	/* ASM_H_ */

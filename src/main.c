@@ -65,6 +65,12 @@ int main(void)
 				printf("error!\n");
 				break;
 
+			case '\b':
+				lastnl = 0;
+				printf("\b \b");
+				if(cmdend) cmdend--;
+				break;
+
 			default:
 				lastnl = 0;
 				putchar(c);
@@ -112,6 +118,9 @@ static void cmdrun(char *cmd)
 
 	} else if(strcmp(cmd, "ticks") == 0) {
 		printf("%lu\n", num_ticks);
+
+	} else if(strcmp(cmd, "vinit") == 0) {
+		video_init();
 
 	} else if(strcmp(cmd, "help") == 0) {
 		printf("help not implemented yet\n");

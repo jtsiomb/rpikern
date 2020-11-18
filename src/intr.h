@@ -4,13 +4,13 @@
 #include <stdint.h>
 
 enum {
-	INTR_RESET,
-	INTR_UNDEF,
-	INTR_SWI,
-	INTR_IABORT,
-	INTR_DABORT,
-	INTR_IRQ,
-	INTR_FIQ
+	INTR_RESET		= 0,
+	INTR_UNDEF		= 1,
+	INTR_SWI		= 2,
+	INTR_IABORT		= 3,
+	INTR_DABORT		= 4,
+	INTR_IRQ		= 6,
+	INTR_FIQ		= 7
 };
 
 void intr_init(void);
