@@ -8,24 +8,28 @@
 #include "debug.h"
 #include "sysctl.h"
 
+static void read_edid(void);
+
 static void *fb_pixels;
 static int scr_width, scr_height;
 static int fb_width, fb_height, fb_depth, fb_size, fb_pitch;
 static int fb_xoffs, fb_yoffs;
 
-int video_init(void)
+int video_init(int width, int height)
 {
 	int i, j;
 	struct rpi_prop *prop;
 	uint32_t *fbptr;
 
-	scr_width = 1024;
-	scr_height = 600;
+	scr_width = width;
+	scr_height = height;
 	/*fb_width = 1920;
 	fb_height = 1024;*/
 	fb_width = scr_width;
 	fb_height = scr_height;
 	fb_depth = 32;
+
+	read_edid();
 
 	printf("Requesting video mode: %dx%d %d bpp (fb:%dx%d)\n", scr_width, scr_height,
 			fb_depth, fb_width, fb_height);
@@ -157,4 +161,52 @@ void video_update(int dt)
 	}
 
 	video_scroll(nx, ny);
+}
+
+static void parse_edid(void *data)
+{
+}
+
+static void read_edid(void)
+{
+	int i, blocks_left;
+	struct rpi_prop *prop;
+	int bnum = 0;
+	unsigned char csum, *start;
+	static unsigned char edid_sig[] = {0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0};
+
+	do {
+		rpi_prop(RPI_TAG_GETEDID, bnum);
+		if(rpi_prop_send() == -1 || !(prop = rpi_prop_find(RPI_TAG_GETEDID))) {
+			break;
+		}
+		parse_edid(prop->data);
+
+		start = (unsigned char*)prop->data + 8;
+		if(bnum == 0) {
+			/* for the first block, make sure we have a valid EDID signature,
+			 * otherwise this is probably garbage anyway
+			 */
+			if(memcmp(start, edid_sig, 8) != 0) {
+				printf("Invalid EDID signature, ignoring EDID\n");
+				break;
+			}
+		}
+
+		csum = 0;
+		for(i=0; i<128; i++) {
+			csum += start[i];
+		}
+		if(csum != 0) {
+			printf("EDID checksum failed, assuming no more valid EDID blocks\n");
+			break;
+		}
+
+		blocks_left = start[126];
+
+		hexdump(start, 128);
+
+	} while(++bnum < 128 && blocks_left);
+
+	printf("Got %d edid blocks\n", bnum);
 }

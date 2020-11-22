@@ -37,7 +37,7 @@ int main(void)
 	printf("Main RAM base: %x, size: %u bytes\n", rpi_mem_base, rpi_mem_size);
 	printf("Video RAM base: %x, size: %u bytes\n", rpi_vmem_base, rpi_vmem_size);
 
-	video_init();
+	video_init(1920, 1080);
 
 	timer_init();
 	intr_init();
@@ -121,7 +121,14 @@ static void cmdrun(char *cmd)
 		printf("%lu\n", num_ticks);
 
 	} else if(strcmp(cmd, "vinit") == 0) {
-		video_init();
+		int x, y;
+
+		x = atoi(args);
+		while(*args && !isspace(*args)) args++;
+		while(*args && isspace(*args)) args++;
+		y = atoi(args);
+
+		video_init(x, y);
 
 	} else if(strcmp(cmd, "help") == 0) {
 		printf("help not implemented yet\n");
