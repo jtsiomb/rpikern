@@ -20,7 +20,7 @@ int video_init(void)
 	uint32_t *fbptr;
 
 	scr_width = 1024;
-	scr_height = 576;
+	scr_height = 600;
 	/*fb_width = 1920;
 	fb_height = 1024;*/
 	fb_width = scr_width;

@@ -26,9 +26,10 @@ int main(void)
 
 	unsigned int cpsr;
 	asm volatile("mrs %0, cpsr" : "=r"(cpsr));
-	printf("CPSR: %x (mode: %x)\n", cpsr, cpsr & 0x1f);
 
 	rpi_init();
+	printf("CPSR: %x (mode: %x)\n", cpsr, cpsr & 0x1f);
+
 	/*init_serial(115200); done in rpi_init now for early debugging */
 	con_init();
 
