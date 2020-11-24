@@ -16,12 +16,13 @@ int rpi_model;
 uint32_t rpi_iobase;
 uint32_t rpi_mem_base, rpi_mem_size, rpi_vmem_base, rpi_vmem_size;
 uint32_t rpi_clk_cur, rpi_clk_max, rpi_clk_uart;
+unsigned int rpi_power;
 
 /* needs to by 16-byte aligned, because the address we send over the mailbox
  * interface, will have its 4 least significant bits masked off and taken over
  * by the mailbox id
  */
-static char propbuf[256] __attribute__((aligned(16)));
+static char propbuf[512] __attribute__((aligned(16)));
 static struct rpi_prop *wrprop, *rdprop;
 
 
@@ -44,6 +45,10 @@ void rpi_init(void)
 	rpi_prop(RPI_TAG_GETCLKRATE, RPI_CLK_ARM);
 	rpi_prop(RPI_TAG_GETCLKRATE, RPI_CLK_UART);
 	rpi_prop(RPI_TAG_GETMAXRATE, RPI_CLK_ARM);
+	rpi_prop(RPI_TAG_GETPOWER, RPI_POWER_SD);
+	rpi_prop(RPI_TAG_GETPOWER, RPI_POWER_UART0);
+	rpi_prop(RPI_TAG_GETPOWER, RPI_POWER_UART1);
+	rpi_prop(RPI_TAG_GETPOWER, RPI_POWER_USBHCD);
 	if(rpi_prop_send() != -1) {
 		//hexdump(propbuf, sizeof propbuf);
 
@@ -77,6 +82,16 @@ void rpi_init(void)
 				}
 				break;
 
+			case RPI_TAG_GETPOWER:
+				if(prop->data[0] < 32) {
+					if(prop->data[1] & 1) {
+						rpi_power |= 1 << prop->data[0];
+					} else {
+						rpi_power &= ~(1 << prop->data[0]);
+					}
+				}
+				break;
+
 			default:
 				break;
 			}
@@ -85,6 +100,8 @@ void rpi_init(void)
 
 	/* now that we have the UART clock, we can initialize the serial port */
 	init_serial(115200);
+
+	printf("Device power flags: %04x\n", rpi_power);
 
 	printf("UART clock: %d %s\n", clknum(rpi_clk_uart), clkunit(rpi_clk_uart));
 	printf("ARM clock at boot: %d %s (max: %d %s)\n", clknum(rpi_clk_cur), clkunit(rpi_clk_cur),
@@ -163,6 +180,8 @@ static struct {
 	{RPI_TAG_GETREV, 0, 4},
 	{RPI_TAG_GETRAM, 0, 8},
 	{RPI_TAG_GETVRAM, 0, 8},
+	{RPI_TAG_GETPOWER, 4, 8},
+	{RPI_TAG_SETPOWER, 8, 8},
 	{RPI_TAG_GETCLKRATE, 4, 8},
 	{RPI_TAG_SETCLKRATE, 12, 8},
 	{RPI_TAG_GETMAXRATE, 4, 8},
