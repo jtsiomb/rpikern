@@ -9,11 +9,13 @@
 
 
 static int detect(void);
+static int clknum(int clk);
+static const char *clkunit(int clk);
 
 int rpi_model;
 uint32_t rpi_iobase;
 uint32_t rpi_mem_base, rpi_mem_size, rpi_vmem_base, rpi_vmem_size;
-
+uint32_t rpi_clk_cur, rpi_clk_max, rpi_clk_uart;
 
 /* needs to by 16-byte aligned, because the address we send over the mailbox
  * interface, will have its 4 least significant bits masked off and taken over
@@ -31,8 +33,6 @@ void rpi_init(void)
 		for(;;) halt_cpu();
 	}
 
-	init_serial(115200);
-
 	/* The model detected by detect is not accurate, get the correct board model
 	 * through the mailbox property interface if possible.
 	 * Also, detect the amount of CPU and GPU memory available.
@@ -41,13 +41,15 @@ void rpi_init(void)
 	rpi_prop(RPI_TAG_GETREV);
 	rpi_prop(RPI_TAG_GETRAM);
 	rpi_prop(RPI_TAG_GETVRAM);
+	rpi_prop(RPI_TAG_GETCLKRATE, RPI_CLK_ARM);
+	rpi_prop(RPI_TAG_GETCLKRATE, RPI_CLK_UART);
+	rpi_prop(RPI_TAG_GETMAXRATE, RPI_CLK_ARM);
 	if(rpi_prop_send() != -1) {
 		//hexdump(propbuf, sizeof propbuf);
 
 		while((prop = rpi_prop_next())) {
 			switch(prop->id) {
 			case RPI_TAG_GETREV:
-				printf("board revision: %x\n", prop->data[0]);
 				/* TODO: guess rpi model based on board revision */
 				break;
 
@@ -61,9 +63,41 @@ void rpi_init(void)
 				rpi_vmem_size = prop->data[1];
 				break;
 
+			case RPI_TAG_GETCLKRATE:
+				if(prop->data[0] == RPI_CLK_UART) {
+					rpi_clk_uart = prop->data[1];
+				} else if(prop->data[0] == RPI_CLK_ARM) {
+					rpi_clk_cur = prop->data[1];
+				}
+				break;
+
+			case RPI_TAG_GETMAXRATE:
+				if(prop->data[0] == RPI_CLK_ARM) {
+					rpi_clk_max = prop->data[1];
+				}
+				break;
+
 			default:
 				break;
 			}
+		}
+	}
+
+	/* now that we have the UART clock, we can initialize the serial port */
+	init_serial(115200);
+
+	printf("UART clock: %d %s\n", clknum(rpi_clk_uart), clkunit(rpi_clk_uart));
+	printf("ARM clock at boot: %d %s (max: %d %s)\n", clknum(rpi_clk_cur), clkunit(rpi_clk_cur),
+			clknum(rpi_clk_max), clkunit(rpi_clk_max));
+
+	if(rpi_clk_cur < rpi_clk_max) {
+		printf("Changing the ARM clock to %d %s ... ", clknum(rpi_clk_max), clkunit(rpi_clk_max));
+		rpi_prop(RPI_TAG_SETCLKRATE, RPI_CLK_ARM, rpi_clk_max, 1);
+		if(rpi_prop_send() == -1 || !(prop = rpi_prop_find(RPI_TAG_SETCLKRATE))) {
+			printf("failed!\n");
+		} else {
+			printf("success (got: %d %s)\n", clknum(prop->data[1]), clkunit(prop->data[1]));
+			rpi_clk_cur = prop->data[1];
 		}
 	}
 }
@@ -129,7 +163,9 @@ static struct {
 	{RPI_TAG_GETREV, 0, 4},
 	{RPI_TAG_GETRAM, 0, 8},
 	{RPI_TAG_GETVRAM, 0, 8},
-	{RPI_TAG_SETCLOCK, 4, 8},
+	{RPI_TAG_GETCLKRATE, 4, 8},
+	{RPI_TAG_SETCLKRATE, 12, 8},
+	{RPI_TAG_GETMAXRATE, 4, 8},
 	{RPI_TAG_GETEDID, 4, 136},
 	{RPI_TAG_ALLOCFB, 4, 8},
 	{RPI_TAG_RELEASEFB, 0, 0},
@@ -237,4 +273,31 @@ struct rpi_prop *rpi_prop_find(int id)
 		prop = RPI_PROP_NEXT(prop);
 	}
 	return 0;
+}
+
+static const char *clk_suffix[] = { "Hz", "KHz", "MHz", "GHz", 0 };
+
+static const char *clkfmt(int *clk)
+{
+	int i;
+
+	for(i=0; clk_suffix[i]; i++) {
+		int r = *clk % 1000;
+		if(r) break;
+
+		*clk /= 1000;
+	}
+
+	return clk_suffix[i];
+}
+
+static int clknum(int clk)
+{
+	clkfmt(&clk);
+	return clk;
+}
+
+static const char *clkunit(int clk)
+{
+	return clkfmt(&clk);
 }

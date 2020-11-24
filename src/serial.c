@@ -2,10 +2,9 @@
 #include "serial.h"
 #include "uart.h"
 #include "gpio.h"
+#include "rpi.h"
 
 /* baud rate: BAUDDIV = (UART_CLK / (16 * baud)) */
-#define UART_CLK	3000000
-
 void init_serial(int baud)
 {
 	uint32_t bdiv_fp6;
@@ -22,7 +21,7 @@ void init_serial(int baud)
 	REG_ICR = 0x7ff;	/* clear pending interrupts */
 
 	/* calculate baud rate divisor */
-	bdiv_fp6 = (UART_CLK << 6) / (16 * baud);
+	bdiv_fp6 = (rpi_clk_uart << 6) / (16 * baud);
 	REG_IBRD = (bdiv_fp6 >> 6) & 0xffff;	/* 16 bits integer part */
 	REG_FBRD = bdiv_fp6 & 0x3f;		/* 6 bits fractional precision */
 

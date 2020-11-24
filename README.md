@@ -11,7 +11,6 @@ RPi Configuration
 -----------------
 In `config.txt`:
 
-    init_uart_clock=3000000
     enable_uart=1
 
 TODO: should be possible to set these up through mailbox commands instead of

@@ -3,8 +3,10 @@
 	.section .startup
 	.code 32
 
-	.equ MODE_HYP, 0x1a
+	.equ MODE_FIQ, 0x11
+	.equ MODE_IRQ, 0x12
 	.equ MODE_SVC, 0x13
+	.equ MODE_HYP, 0x1a
 	.equ MODE_MASK, 0x1f
 	.equ FLAG_I, 0x0080
 	.equ FLAG_F, 0x0040
@@ -39,13 +41,19 @@ startup:
 	msr elr_hyp, lr		@ put it in elr_hyp
 	eret			@ return from exception to SVC
 hypend:
-	@ setup initial stacks, allow 4k stack for IRQs
-	@mov r0, #0x12	@ switch to IRQ mode
-	@msr cpsr, r0
-	@ldr sp, =_stacktop
-	@mov r0, #0x13	@ switch to supervisor mode
-	@msr cpsr, r0
-	ldr sp, =_stacktop - 4096
+	@ setup initial stacks, allow 4k for each exception stack
+	ldr r1, =_stacktop
+	mov r0, #MODE_IRQ	@ switch to IRQ mode
+	msr cpsr_c, r0
+	mov sp, r1
+	sub r1, #4096
+	mov r0, #MODE_FIQ	@ switch to FIQ mode
+	msr cpsr_c, r0
+	mov sp, r1
+	sub r1, #4096
+	mov r0, #MODE_SVC	@ switch back to supervisor mode
+	msr cpsr_c, r0
+	mov sp, r1
 
 	@ clear bss
 	ldr r0, =_bss_start
@@ -57,6 +65,16 @@ hypend:
 	subs r1, #4
 	bne 0b
 1:
+
+	@ enable cache
+	.equ SCTLR_DCACHE,	0x0004
+	.equ SCTLR_BPRED,	0x0800
+	.equ SCTLR_ICACHE,	0x1000
+	mrc p15, 0, r0, c1, c0, 0
+	orr r0, #SCTLR_DCACHE
+	orr r0, #SCTLR_ICACHE | SCTLR_BPRED
+	mcr p15, 0, r0, c1, c0, 0
+
 	blx main
 
 	.global exit

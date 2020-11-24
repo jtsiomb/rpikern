@@ -15,7 +15,9 @@
 #define RPI_TAG_GETREV		0x010002
 #define RPI_TAG_GETRAM		0x010005
 #define RPI_TAG_GETVRAM		0x010006
-#define RPI_TAG_SETCLOCK	0x038002
+#define RPI_TAG_GETCLKRATE	0x030002
+#define RPI_TAG_SETCLKRATE	0x038002
+#define RPI_TAG_GETMAXRATE	0x030004
 #define RPI_TAG_GETEDID		0x030020
 
 #define RPI_TAG_ALLOCFB		0x040001
@@ -30,6 +32,9 @@
 /* NOTE: for every new tag added, a new entry needs to be added to the tag
  * buffer size struct in rpi.c
  */
+
+#define RPI_CLK_UART	0x02
+#define RPI_CLK_ARM		0x03
 
 struct rpi_prop_header {
 	uint32_t size;
@@ -47,6 +52,7 @@ struct rpi_prop {
 extern int rpi_model;
 extern uint32_t rpi_iobase;
 extern uint32_t rpi_mem_base, rpi_mem_size, rpi_vmem_base, rpi_vmem_size;
+extern uint32_t rpi_clk_cur, rpi_clk_max, rpi_clk_uart;
 
 void rpi_init(void);
 void rpi_reboot(void) __attribute__((noreturn));
