@@ -37,7 +37,7 @@ int main(void)
 	printf("Main RAM base: %x, size: %u bytes\n", rpi_mem_base, rpi_mem_size);
 	printf("Video RAM base: %x, size: %u bytes\n", rpi_vmem_base, rpi_vmem_size);
 
-	video_init(1920, 1080);
+	video_init(0, 0);
 
 	timer_init();
 	intr_init();

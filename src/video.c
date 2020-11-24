@@ -7,19 +7,36 @@
 #include "mem.h"
 #include "debug.h"
 #include "sysctl.h"
+#include "edid.h"
 
-static void read_edid(void);
+static int read_edid(void);
 
 static void *fb_pixels;
 static int scr_width, scr_height;
 static int fb_width, fb_height, fb_depth, fb_size, fb_pitch;
 static int fb_xoffs, fb_yoffs;
 
+#define MAX_EDID_BLOCKS	8
+static struct edid edid[MAX_EDID_BLOCKS];
+
 int video_init(int width, int height)
 {
 	int i, j;
 	struct rpi_prop *prop;
 	uint32_t *fbptr;
+
+	if(width == 0 || height == 0) {
+		struct edid_vmode vm;
+		if(read_edid() && edid_best_mode(edid, &vm) != -1) {
+			printf("Using best mode: %dx%d\n", vm.width, vm.height);
+			width = vm.width;
+			height = vm.height;
+		} else {
+			printf("Warning: failed to detect best mode\n");
+			width = 1920;
+			height = 1080;
+		}
+	}
 
 	scr_width = width;
 	scr_height = height;
@@ -28,8 +45,6 @@ int video_init(int width, int height)
 	fb_width = scr_width;
 	fb_height = scr_height;
 	fb_depth = 32;
-
-	read_edid();
 
 	printf("Requesting video mode: %dx%d %d bpp (fb:%dx%d)\n", scr_width, scr_height,
 			fb_depth, fb_width, fb_height);
@@ -163,11 +178,7 @@ void video_update(int dt)
 	video_scroll(nx, ny);
 }
 
-static void parse_edid(void *data)
-{
-}
-
-static void read_edid(void)
+static int read_edid(void)
 {
 	int i, blocks_left;
 	struct rpi_prop *prop;
@@ -175,12 +186,13 @@ static void read_edid(void)
 	unsigned char csum, *start;
 	static unsigned char edid_sig[] = {0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0};
 
+	edid[0].count = 0;
+
 	do {
 		rpi_prop(RPI_TAG_GETEDID, bnum);
 		if(rpi_prop_send() == -1 || !(prop = rpi_prop_find(RPI_TAG_GETEDID))) {
 			break;
 		}
-		parse_edid(prop->data);
 
 		start = (unsigned char*)prop->data + 8;
 		if(bnum == 0) {
@@ -202,11 +214,19 @@ static void read_edid(void)
 			break;
 		}
 
+		memcpy(edid + bnum, start, sizeof *edid);
+
 		blocks_left = start[126];
+		/*hexdump(start, 128);*/
 
-		hexdump(start, 128);
+	} while(++bnum < MAX_EDID_BLOCKS && blocks_left);
 
-	} while(++bnum < 128 && blocks_left);
+	if(blocks_left) {
+		printf("Warning: truncated EDID to %d blocks (%d ignored)\n", bnum, blocks_left);
+		edid[bnum - 1].count = 0;	/* fix last block count */
+	} else {
+		printf("Got %d edid blocks\n", bnum);
+	}
 
-	printf("Got %d edid blocks\n", bnum);
+	return bnum;
 }
