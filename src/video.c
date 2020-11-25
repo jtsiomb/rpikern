@@ -19,7 +19,7 @@ static int fb_xoffs, fb_yoffs;
 #define MAX_EDID_BLOCKS	8
 static struct edid edid[MAX_EDID_BLOCKS];
 
-int video_init(int width, int height)
+int video_init(int width, int height, int nbuf)
 {
 	int i, j;
 	struct rpi_prop *prop;
@@ -38,12 +38,14 @@ int video_init(int width, int height)
 		}
 	}
 
+	if(nbuf < 1) nbuf = 1;
+
 	scr_width = width;
 	scr_height = height;
 	/*fb_width = 1920;
 	fb_height = 1024;*/
 	fb_width = scr_width;
-	fb_height = scr_height;
+	fb_height = scr_height * nbuf;
 	fb_depth = 32;
 
 	printf("Requesting video mode: %dx%d %d bpp (fb:%dx%d)\n", scr_width, scr_height,

@@ -37,7 +37,7 @@ int main(void)
 	printf("Main RAM base: %x, size: %u bytes\n", rpi_mem_base, rpi_mem_size);
 	printf("Video RAM base: %x, size: %u bytes\n", rpi_vmem_base, rpi_vmem_size);
 
-	video_init(0, 0);
+	video_init(0, 0, 0);
 
 	timer_init();
 	intr_init();
@@ -109,26 +109,31 @@ static void cmdrun(char *cmd)
 
 	} else if(strcmp(cmd, "down") == 0) {
 		printf("scroll down\n");
-		cur_y += 10;
+		cur_y++;
 		video_scroll(cur_x, cur_y);
 
 	} else if(strcmp(cmd, "up") == 0) {
-		printf("scroll up\n");
-		cur_y -= 10;
+		if(cur_y > 0) {
+			printf("scroll up\n");
+			cur_y--;
+		}
 		video_scroll(cur_x, cur_y);
 
 	} else if(strcmp(cmd, "ticks") == 0) {
 		printf("%lu\n", num_ticks);
 
 	} else if(strcmp(cmd, "vinit") == 0) {
-		int x, y;
+		int x, y, nbuf;
 
 		x = atoi(args);
 		while(*args && !isspace(*args)) args++;
 		while(*args && isspace(*args)) args++;
 		y = atoi(args);
+		while(*args && !isspace(*args)) args++;
+		while(*args && isspace(*args)) args++;
+		nbuf = atoi(args);
 
-		video_init(x, y);
+		video_init(x, y, nbuf);
 
 	} else if(strcmp(cmd, "help") == 0) {
 		printf("help not implemented yet\n");

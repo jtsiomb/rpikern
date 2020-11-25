@@ -235,7 +235,7 @@ void rpi_prop(int id, ...)
 int rpi_prop_send(void)
 {
 	struct rpi_prop_header *hdr = (struct rpi_prop_header*)propbuf;
-	uint32_t addr = (uint32_t)propbuf;
+	uint32_t dbg, addr = (uint32_t)propbuf;
 	uint32_t size;
 
 	/* terminate with null tag */
@@ -252,7 +252,9 @@ int rpi_prop_send(void)
 	sysctl_dcache_clean_inval(addr, hdr->size);
 
 	rpi_mbox_send(RPI_MBOX_PROP, addr);
-	while(rpi_mbox_recv(RPI_MBOX_PROP) != addr);
+	while((dbg = rpi_mbox_recv(RPI_MBOX_PROP)) != addr) {
+		printf("DEBUG: mbox recv %08lx, expected %08lx\n", dbg, addr);
+	}
 
 	sysctl_dcache_clean_inval(addr, hdr->size);
 

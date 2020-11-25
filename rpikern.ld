@@ -20,6 +20,6 @@ SECTIONS {
 	_bss_size = SIZEOF(.bss);
 
 	. = ALIGN(4);
-	_kern_size = . - _kern_start;
-	_mem_start = .;
+	_kern_end = .;
+	_kern_size = _kern_end - _kern_start;
 }

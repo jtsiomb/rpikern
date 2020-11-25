@@ -1,10 +1,10 @@
 #ifndef GPIO_H_
 #define GPIO_H_
 
-#include "config.h"
+#include "rpi.h"
 #include "asm.h"
 
-#define GPIO_BASE	(IO_BASE | 0x200000)
+#define GPIO_BASE	(rpi_iobase | 0x200000)
 #define GPIO_REG(x)	(*(volatile uint32_t*)(GPIO_BASE | (x)))
 
 /* function select */
