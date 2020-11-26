@@ -15,7 +15,7 @@ static const char *clkunit(int clk);
 int rpi_model;
 uint32_t rpi_iobase;
 uint32_t rpi_mem_base, rpi_mem_size, rpi_vmem_base, rpi_vmem_size;
-uint32_t rpi_clk_cur, rpi_clk_max, rpi_clk_uart;
+uint32_t rpi_clk_cur, rpi_clk_max, rpi_clk_uart = 3000000;
 unsigned int rpi_power;
 
 /* needs to by 16-byte aligned, because the address we send over the mailbox

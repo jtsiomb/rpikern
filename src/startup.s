@@ -12,6 +12,10 @@
 	.equ FLAG_F, 0x0040
 	.equ FLAG_A, 0x0100
 
+	.equ SCTLR_DCACHE, 0x0004
+	.equ SCTLR_BPRED, 0x0800
+	.equ SCTLR_ICACHE, 0x1000
+
 	.global startup
 startup:
 	@ stop all but one of the cores
@@ -67,9 +71,6 @@ hypend:
 1:
 
 	@ enable cache
-	.equ SCTLR_DCACHE,	0x0004
-	.equ SCTLR_BPRED,	0x0800
-	.equ SCTLR_ICACHE,	0x1000
 	mrc p15, 0, r0, c1, c0, 0
 	orr r0, #SCTLR_DCACHE
 	orr r0, #SCTLR_ICACHE | SCTLR_BPRED

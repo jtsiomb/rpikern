@@ -1,7 +1,6 @@
 	.text
 	.code 32
 
-	@ TODO: detect, this is the default on rpi2
 	.equ UART_CLOCK, 48000000
 	.equ BAUD, 115200
 
@@ -30,6 +29,17 @@
 	.equ REG_GPPUDCLK0, 0x98
 	.equ PUD_DISABLE, 0
 
+
+	.equ I_CTS,	0x0002
+	.equ I_RX,	0x0010
+	.equ I_TX,	0x0020
+	.equ I_RTIME,	0x0040
+	.equ I_FRM,	0x0080
+	.equ I_PAR,	0x0100
+	.equ I_BRK,	0x0200
+	.equ I_OVR,	0x0400
+
+
 	.macro delay, iter
 	ldr r10, =\iter
 0:	subs r10, #1
@@ -38,27 +48,30 @@
 
 	.global init_uart
 init_uart:
+	dmb
+	@ disable pullups for GPIO 14 & 15?
+	ldr r9, =iobase
+	ldr r8, [r9]
+	orr r8, #GPIO_BASE
+
+	mov r0, #PUD_DISABLE
+	str r0, [r8, #REG_GPPUD]
+	delay 150
+	mov r0, #0xc000
+	str r0, [r8, #REG_GPPUDCLK0]
+	delay 150
+	mov r0, #0
+	str r0, [r8, #REG_GPPUDCLK0]
+
 	ldr r9, =iobase
 	ldr r8, [r9]
 	ldr r9, =UART_BASE
 	orr r8, r9
 
+	dmb
 	@ disable UART
 	mov r0, #0
 	str r0, [r8, #REG_CR]
-
-	@ disable pullups for GPIO 14 & 15?
-	ldr r9, =iobase
-	ldr r4, [r9]
-	orr r4, #GPIO_BASE
-	mov r0, #PUD_DISABLE
-	str r0, [r4, #REG_GPPUD]
-	delay 150
-	mov r0, #0xc000
-	str r0, [r4, #REG_GPPUDCLK0]
-	delay 150
-	mov r0, #0
-	str r0, [r4, #REG_GPPUDCLK0]
 
 	@ clear pending intr
 	ldr r0, =0x7ff
@@ -73,15 +86,21 @@ init_uart:
 	@ line control: fifo enable, 8n1
 	ldr r0, =#LCRH_FIFOEN | LCRH_8BITS
 	str r0, [r8, #REG_LCRH]
+	@ mask all interrupts
+	ldr r0, =#I_CTS | I_RX | I_TX | I_RTIME | I_FRM | I_PAR | I_BRK | I_OVR
+	str r0, [r8, #REG_IMSC]
 
 	@ enable UART RX/TX
 	ldr r0, =#CR_UARTEN | CR_TXEN | CR_RXEN
 	str r0, [r8, #REG_CR]
 
+	dmb
 	bx lr
 
 	.global ser_putchar
 ser_putchar:
+	dmb
+
 	ldr r9, =iobase
 	ldr r8, [r9]
 	ldr r9, =UART_BASE
@@ -92,7 +111,7 @@ ser_putchar:
 
 	@ wait until there's space in the transmit fifo
 0:	ldr r9, [r8, #REG_FR]
-	ands r9, #FR_TXFF
+	tst r9, #FR_TXFF
 	bne 0b
 	str r0, [r8, #REG_DR]
 
@@ -101,6 +120,23 @@ ser_putchar:
 	moveq r0, #10
 	beq 0b
 
+	dmb
+	bx lr
+
+	.global ser_getchar
+ser_getchar:
+	dmb
+
+	ldr r9, =iobase
+	ldr r8, [r9]
+	ldr r9, =UART_BASE
+	orr r8, r9
+
+	@wait until there's something in the recv queue
+0:	ldr r9, [r8, #REG_FR]
+	tst r9, #FR_RXFE
+	bne 0b
+	ldr r0, [r8, #REG_DR]
 	bx lr
 
 	.global ser_printstr

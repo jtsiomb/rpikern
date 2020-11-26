@@ -10,6 +10,9 @@
 	.equ DBGLED_GREEN, 2
 	.equ DBGLED_YELLOW, 3
 
+	.equ SCTLR_DCACHE, 0x0004
+	.equ SCTLR_ICACHE, 0x1000
+
 	.extern init_uart
 	.extern ser_putchar
 	.extern ser_getchar
@@ -25,6 +28,12 @@ startup:
 	ands r0, r0, #0xff
 	bne park
 
+	@ disable caches
+	mrc p15, 0, r0, c1, c0, 0
+	bic r0, #SCTLR_DCACHE
+	bic r0, #SCTLR_ICACHE
+	mcr p15, 0, r0, c1, c0, 0
+
 	@ put the stacktop at 4000h
 	mov sp, #0x4000
 
@@ -38,12 +47,12 @@ startup:
 	blo 0b
 
 	@ continue executing in the copy 4000h lower
-	sub pc, #0x4000
+	@sub pc, #0x4000
 
 	mov r0, #DBGLED_RED
-	bl dbgled	@ lite up red if we reached this point
+	bl dbgled	@ light up red if we reached this point
 
-	bl init_uart
+	bl init_uart	@ initialize the serial port
 
 	ldr r0, ='@'
 	bl ser_putchar
@@ -51,8 +60,20 @@ startup:
 	ldr r0, =hello
 	bl ser_printstr
 
-	mov r0, #DBGLED_YELLOW
+	mov r6, #DBGLED_YELLOW
+	mov r0, r6
 	bl dbgled
+
+mainloop:
+	bl ser_getchar
+	mov r0, #'.'
+	bl ser_putchar
+
+	eor r6, #1
+	mov r0, r6
+	bl dbgled
+
+	b mainloop
 
 park:	wfe
 	b park
