@@ -1,8 +1,4 @@
-	@ ---- Change IOBASE according to the device you wish to build for -----
-	@.equ IOBASE, 0x20000000	@ RPI 1/zero
-	.equ IOBASE, 0x3f000000		@ RPI 2/3
-	@.equ IOBASE, 0xfe000000	@ RPI 4
-	@ ----------------------------------------------------------------------
+	.include "def.inc"
 
 	.equ SCTLR_DCACHE, 0x0004
 	.equ SCTLR_ICACHE, 0x1000
@@ -45,18 +41,75 @@ startup:
 
 mainloop:
 	bl ser_getchar
-	mov r0, #'.'
-	bl ser_putchar
+
+	cmp r0, #':'		@ command start, initialize r8
+	ldreq r8, =buf
+	beq mainloop
+
+	cmp r0, #13		@ end of line, process line
+	cmpne r0, #10
+	bleq procline		@ procline also returns r8 to buf
+	beq mainloop
+
+	str r0, [r8], #1
 	b mainloop
+
+	@ macro for converting a single hex digit to binary in the same register
+	.macro hex2bin_digit reg
+	cmp \reg, #'F'		@ r > 'F' ? mark it zero dude
+	bhi 0f
+	cmp \reg, #'A'		@ r >= 'A' ? r -= 'A' + 10
+	subhs \reg, #'A' + 10
+	bhs 1f
+	cmp \reg, #'9'		@ r > '9' ? mark it zero dude
+	bhi 0f
+	cmp \reg, #'0'		@ r >= '0' ? r -= '0'
+	subhs \reg, #'0'
+	bhs 1f
+0:	mov \reg, #0
+1:
+	.endm
+
+procline:
+	@ convert hex->bin in place and calculate the CRC at the same time
+	ldr r9, =buf
+	mov r10, r9
+	mov r7, #0
+procline_loop:
+	ldrh r0, [r9], #2
+	mov r1, r0, LSR #8	@ second char in r1
+	and r0, #0xf		@ first char in r0
+	hex2bin_digit r0
+	hex2bin_digit r1
+	orr r0, r1, r0, LSL #4
+	add r7, r0		@ add to the running sum
+	strb r0, [r10], #1
+	cmp r9, r8		@ see if we reached the end
+	blo procline_loop
+
+	cmp r7, #0
+	ldrne r0, =str_crcfail
+	blne ser_printstr
+	bne procline_end	@ CRC failed
+
+	@ ignore everything other than 00 (data) commands
+	ldr r9, =buf
+	ldr r0, [r9, #3]
+	cmp r0, #0
+	bne procline_end
+
+procline_end:
+	ldr r8, =buf
+	bx lr
 
 park:	wfe
 	b park
 
 hello:	.ascii "Simple raspberry pi serial port boot loader\n"
 	.asciz "by John Tsiombikas <nuclear@member.fsf.org>\n"
-	.align 2
 
-	.global iobase
-iobase: .long IOBASE
+str_crcfail: .asciz "CRC failed, ignoring line\n"
+
+buf:
 
 @ vi:set filetype=armasm:

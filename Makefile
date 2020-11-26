@@ -5,6 +5,7 @@ obj = $(csrc:.c=.o) $(ssrc:.s=.o) $(Ssrc:.S=.o)
 dep = $(csrc:.c=.d)
 elf = rpikern.elf
 bin = rpikern.bin
+hex = rpikern.hex
 
 ifneq ($(shell uname -m | sed 's/^arm.*/arm/'), arm)
 	toolprefix = arm-linux-gnueabihf-
@@ -28,9 +29,11 @@ LDFLAGS = -nostdlib -T rpikern.ld -print-gc-sections
 
 QEMU_FLAGS = -vnc :0 -m 1024 -M raspi2 -serial stdio -d guest_errors
 
-
 $(bin): $(elf)
 	$(OBJCOPY) -O binary $< $@
+
+$(hex): $(elf)
+	$(OBJCOPY) -O ihex $< $@
 
 $(elf): $(obj) rpikern.ld
 	$(LD) -o $@ $(obj) -Map link.map $(LDFLAGS)
@@ -56,3 +59,6 @@ disasm: $(elf)
 .PHONY: install
 install: $(bin)
 	cp $(bin) /srv/tftp/$(bin)
+
+.PHONY: hex
+hex: $(hex)

@@ -9,7 +9,7 @@ ifneq ($(shell uname -m | sed 's/^arm.*/arm/'), arm)
 	OBJCOPY = $(toolprefix)objcopy
 endif
 
-ASFLAGS = -mcpu=cortex-a7
+ASFLAGS = -mcpu=cortex-a7 -Isrc
 LDFLAGS = -nostdlib -T ../rpikern.ld -print-gc-sections
 
 $(name).bin: $(name).elf

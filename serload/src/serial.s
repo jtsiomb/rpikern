@@ -1,3 +1,5 @@
+	.include "def.inc"
+
 	.text
 	.code 32
 
@@ -51,9 +53,7 @@ init_serial:
 	stmfd sp!, {r8,r9}
 	dmb
 	@ disable pullups for GPIO 14 & 15?
-	ldr r9, =iobase
-	ldr r8, [r9]
-	orr r8, #GPIO_BASE
+	ldr r8, =#IOBASE | GPIO_BASE
 
 	mov r0, #PUD_DISABLE
 	str r0, [r8, #REG_GPPUD]
@@ -64,12 +64,8 @@ init_serial:
 	mov r0, #0
 	str r0, [r8, #REG_GPPUDCLK0]
 
-	ldr r9, =iobase
-	ldr r8, [r9]
-	ldr r9, =UART_BASE
-	orr r8, r9
-
 	dmb
+	ldr r8, =#IOBASE | UART_BASE
 	@ disable UART
 	mov r0, #0
 	str r0, [r8, #REG_CR]
@@ -103,10 +99,7 @@ init_serial:
 ser_putchar:
 	dmb
 
-	ldr r3, =iobase
-	ldr r2, [r3]
-	ldr r3, =UART_BASE
-	orr r2, r3
+	ldr r2, =#IOBASE | UART_BASE
 
 	cmp r0, #10
 	moveq r0, #13	@ change it to a 13, which will be followed by a 10
@@ -129,10 +122,7 @@ ser_putchar:
 ser_getchar:
 	dmb
 
-	ldr r3, =iobase
-	ldr r2, [r3]
-	ldr r3, =UART_BASE
-	orr r2, r3
+	ldr r2, =#IOBASE | UART_BASE
 
 	@wait until there's something in the recv queue
 0:	ldr r3, [r2, #REG_FR]
@@ -145,10 +135,7 @@ ser_getchar:
 ser_pending:
 	dmb
 
-	ldr r3, =iobase
-	ldr r2, [r3]
-	ldr r3, =UART_BASE
-	orr r2, r3
+	ldr r2, =#IOBASE | UART_BASE
 
 	ldr r0, [r2, #REG_FR]
 	ands r0, #FR_RXFE
