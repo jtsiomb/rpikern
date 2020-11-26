@@ -46,8 +46,9 @@
 	bne 0b
 	.endm
 
-	.global init_uart
-init_uart:
+	.global init_serial
+init_serial:
+	stmfd sp!, {r8,r9}
 	dmb
 	@ disable pullups for GPIO 14 & 15?
 	ldr r9, =iobase
@@ -95,25 +96,26 @@ init_uart:
 	str r0, [r8, #REG_CR]
 
 	dmb
+	ldmfd sp!, {r8,r9}
 	bx lr
 
 	.global ser_putchar
 ser_putchar:
 	dmb
 
-	ldr r9, =iobase
-	ldr r8, [r9]
-	ldr r9, =UART_BASE
-	orr r8, r9
+	ldr r3, =iobase
+	ldr r2, [r3]
+	ldr r3, =UART_BASE
+	orr r2, r3
 
 	cmp r0, #10
 	moveq r0, #13	@ change it to a 13, which will be followed by a 10
 
 	@ wait until there's space in the transmit fifo
-0:	ldr r9, [r8, #REG_FR]
-	tst r9, #FR_TXFF
+0:	ldr r3, [r2, #REG_FR]
+	tst r3, #FR_TXFF
 	bne 0b
-	str r0, [r8, #REG_DR]
+	str r0, [r2, #REG_DR]
 
 	@ if it was a 13, loop back and write a 10
 	cmp r0, #13
@@ -127,16 +129,31 @@ ser_putchar:
 ser_getchar:
 	dmb
 
-	ldr r9, =iobase
-	ldr r8, [r9]
-	ldr r9, =UART_BASE
-	orr r8, r9
+	ldr r3, =iobase
+	ldr r2, [r3]
+	ldr r3, =UART_BASE
+	orr r2, r3
 
 	@wait until there's something in the recv queue
-0:	ldr r9, [r8, #REG_FR]
-	tst r9, #FR_RXFE
+0:	ldr r3, [r2, #REG_FR]
+	tst r3, #FR_RXFE
 	bne 0b
-	ldr r0, [r8, #REG_DR]
+	ldr r0, [r2, #REG_DR]
+	bx lr
+
+	.global ser_pending
+ser_pending:
+	dmb
+
+	ldr r3, =iobase
+	ldr r2, [r3]
+	ldr r3, =UART_BASE
+	orr r2, r3
+
+	ldr r0, [r2, #REG_FR]
+	ands r0, #FR_RXFE
+	movne r0, #0
+	moveq r0, #1
 	bx lr
 
 	.global ser_printstr

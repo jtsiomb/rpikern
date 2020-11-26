@@ -4,19 +4,8 @@
 	@.equ IOBASE, 0xfe000000	@ RPI 4
 	@ ----------------------------------------------------------------------
 
-	.equ GPIO_BASE, 0x200000
-
-	.equ DBGLED_RED, 1
-	.equ DBGLED_GREEN, 2
-	.equ DBGLED_YELLOW, 3
-
 	.equ SCTLR_DCACHE, 0x0004
 	.equ SCTLR_ICACHE, 0x1000
-
-	.extern init_uart
-	.extern ser_putchar
-	.extern ser_getchar
-	.extern ser_printstr
 
 	.section .startup
 	.code 32
@@ -47,58 +36,25 @@ startup:
 	blo 0b
 
 	@ continue executing in the copy 4000h lower
-	@sub pc, #0x4000
+	sub pc, #0x4000
 
-	mov r0, #DBGLED_RED
-	bl dbgled	@ light up red if we reached this point
-
-	bl init_uart	@ initialize the serial port
-
-	ldr r0, ='@'
-	bl ser_putchar
+	bl init_serial
 
 	ldr r0, =hello
 	bl ser_printstr
-
-	mov r6, #DBGLED_YELLOW
-	mov r0, r6
-	bl dbgled
 
 mainloop:
 	bl ser_getchar
 	mov r0, #'.'
 	bl ser_putchar
-
-	eor r6, #1
-	mov r0, r6
-	bl dbgled
-
 	b mainloop
 
 park:	wfe
 	b park
 
-hello:	.asciz "hello world!\n"
+hello:	.ascii "Simple raspberry pi serial port boot loader\n"
+	.asciz "by John Tsiombikas <nuclear@member.fsf.org>\n"
 	.align 2
-
-	@ r0 bits 0 and 1, control LEDs connected to GPIO 18 and 23 
-	.global dbgled
-dbgled:
-	ldr r3, iobase
-	orr r3, #GPIO_BASE	@ gpio base
-	ldr r2, =0x1000000	@ gpio 18 output
-	str r2, [r3, #4]
-	ldr r2, =0x200		@ gpio 23 output
-	str r2, [r3, #8]	@ store to GPFSEL2
-	ldr r2, =0x00040000	@ bit 18
-	tst r0, #1
-	strne r2, [r3, #0x1c]	@ GPSET0
-	streq r2, [r3, #0x28]	@ GPCLR0
-	ldr r2, =0x00800000
-	tst r0, #2
-	strne r2, [r3, #0x1c]	@ GPSET0
-	streq r2, [r3, #0x28]	@ GPCLR0
-	bx lr
 
 	.global iobase
 iobase: .long IOBASE
