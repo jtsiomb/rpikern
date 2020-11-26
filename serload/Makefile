@@ -26,6 +26,10 @@ clean:
 run: $(name).elf
 	qemu-system-arm -vnc :0 -m 1024 -M raspi2 -serial stdio -d guest_errors -kernel $<
 
+.PHONY: debug
+debug: $(name).elf
+	qemu-system-arm -s -S -vnc :0 -m 1024 -M raspi2 -serial stdio -d guest_errors -kernel $<
+
 .PHONY: disasm
 disasm: $(name).elf
 	$(toolprefix)objdump -D $<
