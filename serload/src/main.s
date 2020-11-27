@@ -39,19 +39,23 @@ startup:
 	ldr r0, =hello
 	bl ser_printstr
 
+	ldr r8, =buf		@ initialize the input pointer
 mainloop:
 	bl ser_getchar
+	ldr r1, =echo
+	cmp r1, #0
+	blne ser_putchar
 
-	cmp r0, #':'		@ command start, initialize r8
-	ldreq r8, =buf
+	cmp r0, #':'		@ ignore colons
 	beq mainloop
 
 	cmp r0, #13		@ end of line, process line
 	cmpne r0, #10
-	bleq procline		@ procline also returns r8 to buf
-	beq mainloop
+	strneb r0, [r8], #1	@ not EOL ? store it in the buffer
+	bne mainloop		@ and loop back
 
-	str r0, [r8], #1
+	@ if it was EOL, process the line and jump back
+	bl procline		@ procline also returns r8 to buf
 	b mainloop
 
 	@ macro for converting a single hex digit to binary in the same register
@@ -71,6 +75,7 @@ mainloop:
 	.endm
 
 procline:
+	stmfd sp!, {r4, lr}
 	@ convert hex->bin in place and calculate the CRC at the same time
 	ldr r9, =buf
 	mov r10, r9
@@ -89,9 +94,10 @@ procline:
 
 	ands r7, #0xff
 	ldrne r0, =str_crcfail
-	blne ser_printstr
-	bne .Lprocline_end	@ CRC failed
-
+	beq 0f
+	bl ser_printstr
+	b .Lprocline_end	@ CRC failed
+0:
 	@ move the sentinel to the CRC field to ignore it from now on
 	sub r8, #1
 
@@ -142,6 +148,7 @@ procline:
 
 .Lprocline_end:
 	ldr r8, =buf
+	ldmfd sp!, {r4, lr}
 	bx lr
 
 park:	wfe
@@ -153,6 +160,7 @@ hello:	.ascii "Simple raspberry pi serial port boot loader\n"
 str_crcfail: .asciz "CRC failed, ignoring line\n"
 
 	.align 2
+echo:	.long 1
 base_addr: .long 0
 start_addr: .long 0x8000
 buf:
