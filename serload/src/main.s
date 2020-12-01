@@ -41,7 +41,10 @@ startup:
 
 	ldr r8, =buf		@ initialize the input pointer
 mainloop:
+	bl ser_flow_start
 	bl ser_getchar
+	bl ser_flow_stop
+
 	ldr r1, =echo
 	cmp r1, #0
 	blne ser_putchar
@@ -49,7 +52,7 @@ mainloop:
 	cmp r0, #':'		@ ignore colons
 	beq mainloop
 
-	cmp r0, #13		@ end of line, process line
+	cmp r0, #13		@ check for end of line
 	cmpne r0, #10
 	strneb r0, [r8], #1	@ not EOL ? store it in the buffer
 	bne mainloop		@ and loop back
@@ -106,7 +109,7 @@ procline:
 	ldrb r0, [r9, #3]
 	cmp r0, #5		@ valid: 0-5
 	ldrls pc, [pc, r0, LSL #2]
-	b .Lprocline_end
+	b .Lprocline_err
 	.long .Lprocline_data - 0x4000
 	.long .Lprocline_eof - 0x4000
 	.long .Lprocline_end - 0x4000
@@ -151,16 +154,22 @@ procline:
 	ldmfd sp!, {r4, lr}
 	bx lr
 
+.Lprocline_err:
+	ldr r0, =str_inval
+	bl ser_printstr
+	b .Lprocline_end
+
 park:	wfe
 	b park
 
 hello:	.ascii "Simple raspberry pi serial port boot loader\n"
 	.asciz "by John Tsiombikas <nuclear@member.fsf.org>\n"
 
+str_inval: .asciz "Invalid command\n"
 str_crcfail: .asciz "CRC failed, ignoring line\n"
 
 	.align 2
-echo:	.long 1
+echo:	.long 0
 base_addr: .long 0
 start_addr: .long 0x8000
 buf:

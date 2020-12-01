@@ -13,6 +13,7 @@
 	.equ REG_FBRD,	0x28
 	.equ REG_LCRH,	0x2c
 	.equ REG_CR,	0x30
+	.equ REG_IFLS,	0x34
 	.equ REG_IMSC,	0x38
 	.equ REG_ICR,	0x44
 
@@ -22,15 +23,21 @@
 	.equ CR_UARTEN,	0x0001
 	.equ CR_TXEN,	0x0100
 	.equ CR_RXEN,	0x0200
+	.equ CR_RTS,	0x0800
+	.equ CR_RTSEN,	0x4000
+	.equ CR_CTSEN,	0x8000
 
 	.equ FR_RXFE,	0x10
 	.equ FR_TXFF,	0x20
 
 	.equ GPIO_BASE, 0x200000
+	.equ REG_GPFSEL1, 0x04
 	.equ REG_GPPUD, 0x94
 	.equ REG_GPPUDCLK0, 0x98
 	.equ PUD_DISABLE, 0
 
+	.equ FSEL_ALT0, 4
+	.equ FSEL_ALT3, 7
 
 	.equ I_CTS,	0x0002
 	.equ I_RX,	0x0010
@@ -41,6 +48,16 @@
 	.equ I_BRK,	0x0200
 	.equ I_OVR,	0x0400
 
+	.equ IFLS_TX_EIGHTH,	0
+	.equ IFLS_TX_QUARTER,	1
+	.equ IFLS_TX_HALF,	2
+	.equ IFLS_TX_3QUART,	3
+	.equ IFLS_TX_7EIGHTHS,	4
+	.equ IFLS_RX_EIGHTH,	0
+	.equ IFLS_RX_QUARTER,	(IFLS_TX_QUARTER << 3)
+	.equ IFLS_RX_HALF,	(IFLS_TX_HALF << 3)
+	.equ IFLS_RX_3QUART,	(IFLS_TX_3QUART << 3)
+	.equ IFLS_RX_7EIGHTHS,	(IFLS_TX_7EIGHTHS << 3)
 
 	.macro delay, iter
 	ldr r10, =\iter
@@ -64,6 +81,13 @@ init_serial:
 	mov r0, #0
 	str r0, [r8, #REG_GPPUDCLK0]
 
+	@ Set GPIO function select register for the UART pins
+	@ GPIO14,GPIO15 -> ALT0: TXD0/RXD0 (GPFSEL1 bits 12-14 and 15-17)
+	mov r0, #(FSEL_ALT0 << 12) | (FSEL_ALT0 << 15)
+	@ GPIO16,GPIO17 -> ALT3: CTS0/RTS0 (GPFSEL1 bits 18-20 and 21-23)
+	orr r0, #(FSEL_ALT3 << 18) | (FSEL_ALT3 << 21)
+	str r0, [r8, #REG_GPFSEL1]
+
 	dmb
 	ldr r8, =#IOBASE | UART_BASE
 	@ disable UART
@@ -86,9 +110,12 @@ init_serial:
 	@ mask all interrupts
 	ldr r0, =#I_CTS | I_RX | I_TX | I_RTIME | I_FRM | I_PAR | I_BRK | I_OVR
 	str r0, [r8, #REG_IMSC]
+	@ set interrupt trigger levels for RX/TX to half the FIFO (this affects flow control)
+	ldr r0, =#IFLS_RX_HALF | IFLS_TX_HALF
+	str r0, [r8, #REG_IFLS]
 
-	@ enable UART RX/TX
-	ldr r0, =#CR_UARTEN | CR_TXEN | CR_RXEN
+	@ enable UART RX/TX and hardware flow control (CTS/RTS)
+	ldr r0, =#CR_UARTEN | CR_TXEN | CR_RXEN @ | CR_RTSEN | CR_CTSEN
 	str r0, [r8, #REG_CR]
 
 	dmb
@@ -155,6 +182,34 @@ ser_printstr:
 	b 0b
 
 1:	ldmfd sp!, {r4,lr}
+	bx lr
+
+	.global ser_flow_start
+ser_flow_start:
+	stmfd sp!, {r0,lr}
+	mov r0, #17	@ XON
+	bl ser_putchar
+	ldmfd sp!, {r0,lr}
+@	dmb
+@	ldr r2, =#IOBASE | UART_BASE
+@	ldr r1, [r2, #REG_CR]
+@	orr r1, #CR_RTS
+@	str r1, [r2, #REG_CR]
+@	dmb
+	bx lr
+
+	.global ser_flow_stop
+ser_flow_stop:
+	stmfd sp!, {r0,lr}
+	mov r0, #19	@ XOFF
+	bl ser_putchar
+	ldmfd sp!, {r0,lr}
+@	dmb
+@	ldr r2, =#IOBASE | UART_BASE
+@	ldr r1, [r2, #REG_CR]
+@	bic r1, #CR_RTS
+@	str r1, [r2, #REG_CR]
+@	dmb
 	bx lr
 
 @ vi:set filetype=armasm:
