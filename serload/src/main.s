@@ -39,27 +39,70 @@ startup:
 	ldr r0, =hello
 	bl ser_printstr
 
+	@ macro to send a XON and update r11 to reflect the flow control state
+	.macro flow_xon
+	mov r11, #1
+	mov r0, #17
+	bl ser_putchar
+	.endm
+	@ macro to send a XOFF and update r11 to reflect the flow control state
+	.macro flow_xoff
+	mov r11, #0
+	mov r0, #19
+	bl ser_putchar
+	.endm
+
+	flow_xon
 	ldr r8, =buf		@ initialize the input pointer
 mainloop:
-	bl ser_flow_start
 	bl ser_getchar
-	bl ser_flow_stop
 
-	ldr r1, =echo
-	cmp r1, #0
-	blne ser_putchar
+	@ if there are more characters pending, send a XOFF and read them all
+	mov r4, r0		@ save the char we just read
+.Lcheck_pending:
+	bl ser_pending
+	cmp r0, #0
+	beq .Lnot_pending
+	flow_xoff
+	mov r0, r4
+	bl proc_char
+	bl ser_getchar		@ get the first pending char
+	mov r4, r0
+	b .Lcheck_pending
+.Lnot_pending:
+	@ re-enable flow control if we disabled it previously
+	cmp r11, #0
+	bne 0f
+	flow_xon
+0:	mov r0, r4		@ process the last char
+	bl proc_char
+	b mainloop
+
+proc_char:
+	stmfd sp!, {lr}
+
+	@bl ser_putchar
 
 	cmp r0, #':'		@ ignore colons
-	beq mainloop
+	beq .Lproc_char_end
 
 	cmp r0, #13		@ check for end of line
 	cmpne r0, #10
 	strneb r0, [r8], #1	@ not EOL ? store it in the buffer
-	bne mainloop		@ and loop back
+	bne .Lproc_char_end	@ and return
 
-	@ if it was EOL, process the line and jump back
-	bl procline		@ procline also returns r8 to buf
-	b mainloop
+	@ if it was EOL, send XOFF, process the line and jump back
+	mov r0, #19
+	bl ser_putchar
+
+	bl procline		@ procline also restores r8 to the start of buf
+
+	@ if previously input was enabled (XON), restore it
+	cmp r11, #0
+	beq .Lproc_char_end
+	flow_xon
+.Lproc_char_end:
+	ldmfd sp!, {pc}
 
 	@ macro for converting a single hex digit to binary in the same register
 	.macro hex2bin_digit reg
@@ -132,8 +175,9 @@ procline:
 	b .Lprocline_end
 
 .Lprocline_eof:
-	@ EOF reached, jump to 0x8000
-	mov r0, #0x8000
+	@ EOF reached, jump to the entry point (default: 0x8000)
+	bl ser_flow_start	@ send XON before branching to the kernel
+	ldr r0, start_addr
 	bx r0
 
 .Lprocline_base_lin:

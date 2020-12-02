@@ -166,8 +166,8 @@ ser_pending:
 
 	ldr r0, [r2, #REG_FR]
 	ands r0, #FR_RXFE
-	movne r0, #0
-	moveq r0, #1
+	movne r0, #0	@ if RXFE is set, FIFO is empty: return 0
+	moveq r0, #1	@ if RXFE is not set, FIFO is not empty: return 1
 	bx lr
 
 	.global ser_printstr

@@ -1,3 +1,6 @@
+# serial device to be used by the boot rule, to transfer the kernel image
+SERDEV ?= /dev/ttyS0
+
 csrc = $(wildcard src/*.c) $(wildcard src/libc/*.c)
 ssrc = $(wildcard src/*.s) $(wildcard src/libc/*.s)
 Ssrc = $(wildcard src/*.S) $(wildcard src/libc/*.S)
@@ -59,6 +62,12 @@ disasm: $(elf)
 .PHONY: install
 install: $(bin)
 	cp $(bin) /srv/tftp/$(bin)
+
+.PHONY: boot
+boot: $(hex)
+	stty -F $(SERDEV) 115200 ixon
+	ascii-xfr -dsv $< >$(SERDEV)
+	#cat $< >$(SERDEV)
 
 .PHONY: hex
 hex: $(hex)
