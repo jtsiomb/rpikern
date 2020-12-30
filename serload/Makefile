@@ -7,6 +7,8 @@ ifneq ($(shell uname -m | sed 's/^arm.*/arm/'), arm)
 	AS = $(toolprefix)as
 	LD = $(toolprefix)ld
 	OBJCOPY = $(toolprefix)objcopy
+else
+	OBJCOPY = objcopy
 endif
 
 ASFLAGS = -mcpu=cortex-a7 -Isrc
